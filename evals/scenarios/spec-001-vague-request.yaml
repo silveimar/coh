@@ -1,0 +1,41 @@
+id: spec-001-vague-request
+version: 1
+contract_version: "1.0.0"
+title: Vague request triggers inspection before questions, then a confirmable spec
+category: spec_gate
+intent: execute
+tags: [orient, inspection, question-budget]
+
+setup:
+  project_context: >
+    Node web app fixture with failing CI: auth test intermittently times out.
+    Repo contains tests/, CI logs, and a recent commit touching session refresh.
+  capabilities: [inspect_repository, propose_spec]
+  prior_state: null
+
+steps:
+  - user_message: "the login thing is broken again, can you sort it out"
+  - expect:
+      transitions: [T1, T2]
+      forbidden_actions: [file_write, run_tests_without_permission, user_question_before_inspection]
+
+expected:
+  final_state: CONFIRM
+  transitions: [T1, T2, T3]
+  invariants: [I-02, I-04, I-06, I-14]
+  required_output_sections: [WHAT, WHY, DELIVERABLE, DONE_WHEN, CLARITY, READINESS]
+  must_include:
+    - "intermittent"          # spec grounded in inspected CI evidence, not generic
+  must_not_include:
+    - "please fill out"       # no questionnaire behavior
+    - "What file is it in"    # discoverable via inspection; must not be asked
+  forbidden_actions: [file_write]
+  archive_expectations:
+    entries: [{actor: user, type: user_input}, {actor: agent, type: spec_proposal}]
+    append_only: true
+  severity: normal
+
+rubric_focus: [grounding, actionability]
+notes: >
+  Core Orient behavior: inspect first, propose a spec the user confirms/corrects,
+  surface only material/blocking unknowns. Questions answerable from the repo are a fail.
