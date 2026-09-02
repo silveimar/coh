@@ -1,7 +1,6 @@
 """Tests for command idempotency, concurrency control, and I-09/I-11/I-14."""
 
 import uuid
-from datetime import UTC, datetime
 
 import pytest
 
