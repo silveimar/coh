@@ -40,6 +40,8 @@ class TestCommandConcurrency:
         cmd = TransitionToSpecifyCommand(
             idempotency_key="cmd_001",
             expected_version=1,
+            session_id=session.id,
+            findings_archived=True,
         )
 
         # First execution succeeds
@@ -66,6 +68,8 @@ class TestCommandConcurrency:
         cmd1 = TransitionToSpecifyCommand(
             idempotency_key="cmd_001",
             expected_version=1,
+            session_id=session.id,
+            findings_archived=True,
         )
         machine.transition_to_specify(session, findings_archived=True, command=cmd1)
         assert session.version == 2
@@ -74,6 +78,8 @@ class TestCommandConcurrency:
         cmd2 = TransitionToSpecifyCommand(
             idempotency_key="cmd_002",
             expected_version=1,  # Stale, should be 2
+            session_id=session.id,
+            findings_archived=True,
         )
 
         with pytest.raises(ConcurrencyError) as exc_info:
@@ -96,10 +102,14 @@ class TestCommandConcurrency:
         cmd_a = TransitionToSpecifyCommand(
             idempotency_key="cmd_a",
             expected_version=1,
+            session_id=session.id,
+            findings_archived=True,
         )
         cmd_b = TransitionToSpecifyCommand(
             idempotency_key="cmd_b",
             expected_version=1,
+            session_id=session.id,
+            findings_archived=True,
         )
 
         # First succeeds
@@ -117,71 +127,52 @@ class TestInvariantI09DecisionSuperseding:
     """Test I-09: decision superseding and reopening."""
 
     def test_superseded_decision_keeps_history(self) -> None:
-        """Test that superseding a decision preserves full history."""
+        """Test that superseding a decision preserves full history (I-09)."""
         decision = Decision(
             id=uuid.uuid4(),
-            decision_type="architecture",
             question="Which database to use?",
+            selected_option="SQLite",
+            rationale="Start simple, migrate if needed",
             alternatives=[
                 Alternative(
-                    name="SQLite",
-                    pros=["Simple", "File-based"],
-                    cons=["Limited concurrency"],
-                ),
-                Alternative(
-                    name="PostgreSQL",
-                    pros=["Powerful", "Concurrent"],
-                    cons=["Complex setup"],
+                    text="PostgreSQL",
+                    rejection_reason="Too complex for initial v0.1 scope",
                 ),
             ],
-            chosen="SQLite",
-            rationale="Start simple, migrate if needed",
-            lifecycle=DecisionLifecycle.ACCEPTED,
-            recorded_at=datetime.now(UTC),
+            lifecycle=DecisionLifecycle.ACTIVE,
         )
 
+        original_id = decision.id
+        new_decision_id = uuid.uuid4()
+
         # Supersede with new decision
-        new_decision = decision.supersede(
-            new_chosen="PostgreSQL",
-            new_rationale="Complexity warranted by scale requirements",
-        )
+        decision.supersede(new_decision_id)
 
         # Original decision is superseded
         assert decision.lifecycle == DecisionLifecycle.SUPERSEDED
         assert decision.superseded_at is not None
-        assert decision.superseded_by == new_decision.id
-
-        # New decision is accepted
-        assert new_decision.lifecycle == DecisionLifecycle.ACCEPTED
-        assert new_decision.chosen == "PostgreSQL"
-        assert new_decision.supersedes_id == decision.id
-
-        # History preserved
-        assert new_decision.question == decision.question
-        assert new_decision.alternatives == decision.alternatives
+        assert decision.superseded_by == new_decision_id
+        assert decision.id == original_id  # ID unchanged
 
     def test_decision_can_be_reopened(self) -> None:
-        """Test that accepted decision can be reopened for reconsideration."""
+        """Test that active decision can be reopened for reconsideration (I-09)."""
         decision = Decision(
             id=uuid.uuid4(),
-            decision_type="implementation",
             question="How to implement caching?",
-            alternatives=[
-                Alternative(name="In-memory", pros=["Fast"], cons=["Volatile"]),
-                Alternative(name="Redis", pros=["Persistent"], cons=["External dep"]),
-            ],
-            chosen="In-memory",
+            selected_option="In-memory",
             rationale="Simple first iteration",
-            lifecycle=DecisionLifecycle.ACCEPTED,
-            recorded_at=datetime.now(UTC),
+            alternatives=[
+                Alternative(text="Redis", rejection_reason="External dependency"),
+            ],
+            lifecycle=DecisionLifecycle.ACTIVE,
         )
 
         # Reopen for reconsideration
-        reopened = decision.reopen(reason="New requirements need persistence")
+        decision.reopen(reason="New requirements need persistence")
 
-        assert reopened.lifecycle == DecisionLifecycle.PROPOSED
-        assert reopened.reopened_from == decision.id
-        assert reopened.reopened_reason == "New requirements need persistence"
+        assert decision.lifecycle == DecisionLifecycle.REOPENED
+        assert decision.reopened_at is not None
+        assert decision.reopening_reason == "New requirements need persistence"
 
 
 class TestInvariantI11DriftDetection:
