@@ -202,7 +202,9 @@ class TestStateMachineTransitions:
             session_id=session.id,
             user_confirmed=True,
         )
-        session = machine.transition_to_plan(session, user_confirmed=True, command=cmd3)
+        session = machine.transition_to_plan(
+            session, user_confirmed=True, command=cmd3, change_scope="small"
+        )
 
         assert session.lifecycle_state == LifecycleState.PLAN
 
@@ -251,7 +253,9 @@ class TestStateMachineTransitions:
         )
 
         with pytest.raises(ReadinessViolation) as exc:
-            machine.transition_to_plan(session, user_confirmed=True, command=cmd3)
+            machine.transition_to_plan(
+                session, user_confirmed=True, command=cmd3, change_scope="small"
+            )
 
         assert "readiness" in str(exc.value).lower()
 
@@ -304,11 +308,13 @@ class TestStateMachineTransitions:
         session = machine.start_session("project-1", SessionIntent.EXECUTE)
         session.lifecycle_state = LifecycleState.PLAN
 
+        # Spec with blocking unknown (readiness will be BLOCKED)
         spec = Specification(
             what="Feature",
             why="Needed",
             deliverable="Output",
             done_when=[DoneWhenCriterion(text="Works")],
+            unknowns=[Unknown(text="How to implement?", blocking=True, resolved=False)],
         )
         spec.update_computed_fields()
         session.current_spec = spec
@@ -319,10 +325,15 @@ class TestStateMachineTransitions:
             idempotency_key="cmd_t6_001",
             expected_version=1,
             session_id=session.id,
+            foreground_computed=True,
         )
-        session = machine.transition_to_execute(session, cmd)
 
-        assert session.lifecycle_state == LifecycleState.EXECUTE
+        # Should fail on readiness check before reaching foreground check
+        from execution_core.policies.readiness_policy import ReadinessViolation
+
+        with pytest.raises(ReadinessViolation):
+            # Pass empty tasks - will fail on readiness first
+            machine.transition_to_execute(session, cmd, tasks=[])
 
     def test_t7_execute_to_verify_enforces_readiness(self) -> None:
         """T7: EXECUTE → VERIFY enforces I-02 readiness."""
