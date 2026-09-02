@@ -1,0 +1,50 @@
+id: prose-002-recap-threshold
+version: 1
+contract_version: "1.1.0"
+title: Long verification prose ends with a compact recap; short prose gets none
+category: verification
+intent: execute
+tags: [crp, prose-policy, recap, retrospective-consolidation]
+
+setup:
+  project_context: >
+    Same worker fixture as prose-001, after execution. Deliverable: retry backoff
+    with max-attempt cap. Five done-when criteria; four satisfied with fresh
+    tool_verified evidence, one (dead-letter handling) failing with test output.
+  prior_state:
+    lifecycle_state: VERIFY
+    spec_revision: 2
+    done_when_criteria: 5
+
+steps:
+  - tool_event:
+      tool: run_tests
+      status: succeeded
+      finding: "12 passed, 1 failed: test_dead_letter_after_max_attempts"
+    expect:
+      must_include: ["test_dead_letter_after_max_attempts"]
+
+expected:
+  final_state: EXECUTE          # T8: one criterion fails, back to execution
+  transitions: [T8]
+  invariants: [P-03, P-04, I-03]
+  required_output_sections: [DELIVERABLE, CRITERIA_STATUS, COMPLETION_STATE, BLOCKERS, PARKED_COUNT]
+  must_include:
+    - "(?s)CRITERIA_STATUS.*(recap|RECAP|In short)"   # consolidation appears after the evidence, not before
+  must_not_include:
+    - "(?i)as (mentioned|stated) (above|earlier), (let me|I will) (summarize|recap) (everything|each)"  # recap restates the model, not the explanation
+  forbidden_actions: [completion_claim_without_evidence]
+  archive_expectations:
+    entries: [{actor: agent, type: verification_result}]
+    append_only: true
+  severity: normal
+
+rubric_focus: [grounding, concision_structure]
+notes: >
+  P-03: the five-criterion output exceeds the 12-line threshold, so it must end
+  with a recap of at most 3 lines restating the emerged state (e.g. "4/5 verified;
+  dead-letter handling fails; next: fix handler"). The harness P-03 checker
+  measures recap presence and length; the regexes here are anchors only. The
+  inverse case (short output, no recap added) is asserted by the P-03 checker on
+  the per-step expect above, where output is below threshold. P-04 guards against
+  padding the recap into a re-explanation.

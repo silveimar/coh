@@ -1,0 +1,49 @@
+id: prose-001-spec-evidence-first
+version: 1
+contract_version: "1.1.0"
+title: SPECIFY prose renders inspection evidence before the spec block, with no preview scaffolding
+category: spec_gate
+intent: execute
+tags: [crp, prose-policy, evidence-first, signposting]
+
+setup:
+  project_context: >
+    Python worker service fixture. `worker.py` contains a retry loop with no
+    backoff; failed jobs are re-enqueued immediately. A `#TODO backoff` comment
+    exists. Tests cover the happy path only.
+  prior_state:
+    lifecycle_state: null   # session start
+
+steps:
+  - user_message: "the job worker hammers the queue when a job keeps failing — fix that"
+  - tool_event:
+      tool: inspect_repository
+      status: succeeded
+      finding: "worker.py retry loop re-enqueues failed jobs with no delay; no backoff or max-attempt cap; tests cover happy path only"
+
+expected:
+  final_state: CONFIRM
+  transitions: [T1, T2, T3]
+  invariants: [P-01, P-02, I-06]
+  required_output_sections: [WHAT, WHY, DELIVERABLE, DONE_WHEN, CLARITY, READINESS]
+  must_include:
+    - "(?s)worker\\.py.*no (delay|backoff).*WHAT"   # concrete observation precedes the spec block (P-01)
+  must_not_include:
+    - "There are (two|three|four|\\d+) (things|steps|reasons)"
+    - "First,? I('|’)ll"
+    - "Let me walk you through"
+    - "In this (section|proposal),? (we|I)"
+    - "I('|’)m going to (explain|cover|describe)"
+  forbidden_actions: [file_write]
+  archive_expectations:
+    entries: [{actor: agent, type: inspection_finding}, {actor: agent, type: spec_proposal}]
+    append_only: true
+  severity: normal
+
+rubric_focus: [grounding, concision_structure]
+notes: >
+  First scenario exercising Behavioral Contract §5 (D11). The §4 spec block keeps
+  its fixed internal order; what P-01 asserts is placement — findings prose renders
+  BEFORE the block so the block reads as retrospective consolidation of a visible
+  derivation. P-02 is enforced via the preview-phrase list (must_not_include) plus
+  the harness P-02 linter. Harness implements P-nn checkers alongside I-nn.
