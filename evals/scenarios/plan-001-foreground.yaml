@@ -1,0 +1,40 @@
+id: plan-001-foreground
+version: 1
+contract_version: "1.0.0"
+title: Plan yields exactly one NOW and two NEXT with full metadata; dependencies respected
+category: planning
+intent: execute
+tags: [activate, foreground, dependencies]
+
+setup:
+  project_context: >
+    Confirmed Ready spec fixture whose natural plan has five tasks; task E depends on
+    D, D depends on C; A and B are independent; C has the highest goal leverage.
+  prior_state:
+    lifecycle_state: CONFIRM
+    spec: {id: spec_01, revision: 1, readiness: ready}
+
+steps:
+  - user_message: "plan it"
+
+expected:
+  final_state: EXECUTE
+  transitions: [T4, T6]
+  invariants: [I-01, I-06]
+  required_output_sections: [GOAL, NOW, NEXT_1, NEXT_2, PARKED_COUNT]
+  must_include:
+    - "PARKED"
+  must_not_include:
+    - "NEXT 3"                # never more than two NEXT
+  forbidden_actions: [foreground_with_blocked_dependency]
+  archive_expectations:
+    entries: [{actor: agent, type: agent_output}]
+    append_only: true
+  severity: normal
+
+rubric_focus: [usefulness, concision]
+notes: >
+  Harness asserts structurally: exactly one NOW; ≤2 NEXT; NOW has action_literal,
+  done_when_condition, estimated minutes, energy, activation friction (I-01);
+  a task with unresolved dependencies (D, E) is never NOW; remaining plan is
+  summarized as a count, not listed. Ranking must be deterministic (stable tie-breakers).

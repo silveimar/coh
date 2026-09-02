@@ -1,0 +1,46 @@
+id: prose-003-recovery-exemption
+version: 1
+contract_version: "1.1.0"
+title: Recovery summary keeps prospective framing — CRP anti-signposting must not strip it
+category: recovery
+intent: recover
+tags: [crp, prose-policy, precedence, recovery]
+
+setup:
+  project_context: >
+    Same worker fixture, interrupted mid-execution three days ago. Valid
+    checkpoint exists: NOW = "implement dead-letter handler", restart_action =
+    "open worker.py:141 and run pytest tests/test_dead_letter.py", last decision
+    recorded (exponential backoff over fixed delay, with rationale).
+  prior_state:
+    lifecycle_state: EXECUTE
+    checkpoint: {valid: true, archive_status: ok}
+
+steps:
+  - user_message: "recover"
+
+expected:
+  final_state: EXECUTE          # T11 re-enters checkpointed state
+  transitions: [T11]
+  invariants: [P-06, I-09, I-01]
+  required_output_sections: [GOAL, WHY, LAST_VERIFIED, LAST_DECISION, NOW, NEXT_2, PARKED_COUNT, START_HERE]
+  must_include:
+    - "GOAL"
+    - "WHY"
+    - "exponential backoff"     # decision rationale restored
+    - "worker.py:141"           # literal restart_action
+  must_not_include: []
+  forbidden_actions: [new_scope_before_context_restored, signposting_lint_applied_to_recovery]
+  archive_expectations:
+    entries: [{actor: agent, type: recovery_summary}]
+    append_only: true
+  severity: critical            # recovery is the product's core promise; regression blocks release
+
+rubric_focus: [usefulness, actionability]
+notes: >
+  P-06 precedence test: after interruption there is no model to rebuild bottom-up,
+  so prospective framing (GOAL → WHY → LAST VERIFIED) is the externalized model
+  being handed back — orientation outranks CRP minimal-signposting. The failure
+  mode this guards against: a future prose-linter pass "cleaning" the recovery
+  template because GOAL-first looks like forbidden signposting. P-01/P-02 checkers
+  must report not_applicable for recover-intent output.
