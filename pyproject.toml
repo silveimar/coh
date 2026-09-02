@@ -1,7 +1,7 @@
 [project]
 name = "coh-workspace"
 version = "0.1.0"
-description = "COH (Cognitive Operating Harness) - Neurodivergent cognitive execution system"
+description = "COH (Cognitive Operating Harness) - Local-first execution core for solo developers"
 requires-python = ">=3.12"
 readme = "README.md"
 

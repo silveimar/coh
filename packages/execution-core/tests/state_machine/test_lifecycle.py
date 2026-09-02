@@ -1,52 +1,102 @@
 """Tests for state machine lifecycle transitions T1-T11."""
 
+from uuid import uuid4
+
 import pytest
 
 from execution_core.domain.checkpoint import Checkpoint
+from execution_core.domain.commands import (
+    ConcurrencyError,
+    ConfirmSpecCommand,
+    RecoverCommand,
+    ReviseGoalCommand,
+    TransitionToSpecifyCommand,
+)
 from execution_core.domain.enums import (
+    ArchiveStatus,
+    EvidenceAuthority,
+    EvidenceResult,
     LifecycleState,
     SessionIntent,
 )
+from execution_core.domain.evidence import Evidence
 from execution_core.domain.specification import (
     DoneWhenCriterion,
     Specification,
     Unknown,
 )
+from execution_core.policies.completion_policy import CompletionViolation
 from execution_core.state_machine.lifecycle import StateMachine, TransitionError
 
 
 class TestStateMachineTransitions:
-    """Test lifecycle transitions T1-T11 with guard validation."""
+    """Test lifecycle transitions T1-T11 with guard validation and commands."""
 
-    def test_t1_start_session_creates_inspect_state(self):
+    def test_t1_start_session_creates_inspect_state(self) -> None:
         """T1: Session start should enter INSPECT state."""
         session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
 
         assert session.lifecycle_state == LifecycleState.INSPECT
         assert session.project_id == "project-1"
         assert session.intent == SessionIntent.EXECUTE
+        assert session.version == 1
 
-    def test_t2_inspect_to_specify_with_archived_findings(self):
-        """T2: INSPECT → SPECIFY requires archived findings."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
+    def test_t2_inspect_to_specify_with_command(self) -> None:
+        """T2: INSPECT → SPECIFY requires command with version check."""
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
 
-        session = StateMachine.transition_to_specify(session, findings_archived=True)
+        cmd = TransitionToSpecifyCommand(
+            idempotency_key="cmd_t2_001",
+            expected_version=1,
+        )
+        session = machine.transition_to_specify(
+            session, findings_archived=True, command=cmd
+        )
 
         assert session.lifecycle_state == LifecycleState.SPECIFY
+        assert session.version == 2
 
-    def test_t2_inspect_to_specify_fails_without_archive(self):
+    def test_t2_inspect_to_specify_fails_without_archive(self) -> None:
         """T2: INSPECT → SPECIFY fails without archived findings."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
+
+        cmd = TransitionToSpecifyCommand(
+            idempotency_key="cmd_t2_fail",
+            expected_version=1,
+        )
 
         with pytest.raises(TransitionError) as exc:
-            StateMachine.transition_to_specify(session, findings_archived=False)
+            machine.transition_to_specify(session, findings_archived=False, command=cmd)
 
         assert "findings not archived" in str(exc.value)
 
-    def test_t3_specify_to_confirm_with_complete_spec(self):
+    def test_t2_inspect_to_specify_fails_with_wrong_version(self) -> None:
+        """T2: Transition fails with stale version."""
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
+
+        cmd = TransitionToSpecifyCommand(
+            idempotency_key="cmd_t2_stale",
+            expected_version=99,  # Wrong version
+        )
+
+        with pytest.raises(ConcurrencyError):
+            machine.transition_to_specify(session, findings_archived=True, command=cmd)
+
+    def test_t3_specify_to_confirm_with_complete_spec(self) -> None:
         """T3: SPECIFY → CONFIRM requires complete spec."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
-        session = StateMachine.transition_to_specify(session, findings_archived=True)
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
+
+        cmd1 = TransitionToSpecifyCommand(
+            idempotency_key="cmd_t3_001",
+            expected_version=1,
+        )
+        session = machine.transition_to_specify(
+            session, findings_archived=True, command=cmd1
+        )
 
         spec = Specification(
             what="Add feature",
@@ -55,28 +105,61 @@ class TestStateMachineTransitions:
             done_when=[DoneWhenCriterion(text="Feature works")],
         )
 
-        session = StateMachine.transition_to_confirm(session, spec)
+        cmd2 = ConfirmSpecCommand(
+            idempotency_key="cmd_t3_002",
+            expected_version=2,
+            session_id=session.id,
+            spec=spec,
+            user_confirmed=False,
+        )
+        session = machine.transition_to_confirm(session, spec, cmd2)
 
         assert session.lifecycle_state == LifecycleState.CONFIRM
         assert session.current_spec is not None
 
-    def test_t3_specify_to_confirm_fails_with_incomplete_spec(self):
+    def test_t3_specify_to_confirm_fails_with_incomplete_spec(self) -> None:
         """T3: SPECIFY → CONFIRM fails without required fields."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
-        session = StateMachine.transition_to_specify(session, findings_archived=True)
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
+
+        cmd1 = TransitionToSpecifyCommand(
+            idempotency_key="cmd_t3_fail_001",
+            expected_version=1,
+        )
+        session = machine.transition_to_specify(
+            session, findings_archived=True, command=cmd1
+        )
 
         spec = Specification(what="Add feature", why="", deliverable="", done_when=[])
 
+        cmd2 = ConfirmSpecCommand(
+            idempotency_key="cmd_t3_fail_002",
+            expected_version=2,
+            session_id=session.id,
+            spec=spec,
+            user_confirmed=False,
+        )
+
         with pytest.raises(TransitionError) as exc:
-            StateMachine.transition_to_confirm(session, spec)
+            machine.transition_to_confirm(session, spec, cmd2)
 
         assert "incomplete spec" in str(exc.value)
 
-    def test_t4_confirm_to_plan_with_ready_spec(self):
-        """T4: CONFIRM → PLAN requires ready spec."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
-        session = StateMachine.transition_to_specify(session, findings_archived=True)
+    def test_t4_confirm_to_plan_requires_readiness_and_confirmation(self) -> None:
+        """T4: CONFIRM → PLAN enforces I-02 readiness and I-08 confirmation."""
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
 
+        # Transition to SPECIFY
+        cmd1 = TransitionToSpecifyCommand(
+            idempotency_key="cmd_t4_001",
+            expected_version=1,
+        )
+        session = machine.transition_to_specify(
+            session, findings_archived=True, command=cmd1
+        )
+
+        # Create ready spec
         spec = Specification(
             what="Add feature",
             why="User needs it",
@@ -85,16 +168,43 @@ class TestStateMachineTransitions:
         )
         spec.update_computed_fields()
 
-        session = StateMachine.transition_to_confirm(session, spec)
-        session = StateMachine.transition_to_plan(session, user_confirmed=True)
+        # Transition to CONFIRM
+        cmd2 = ConfirmSpecCommand(
+            idempotency_key="cmd_t4_002",
+            expected_version=2,
+            session_id=session.id,
+            spec=spec,
+            user_confirmed=False,
+        )
+        session = machine.transition_to_confirm(session, spec, cmd2)
+
+        # Transition to PLAN with user confirmation
+        from execution_core.domain.commands import TransitionToPlanCommand
+
+        cmd3 = TransitionToPlanCommand(
+            idempotency_key="cmd_t4_003",
+            expected_version=3,
+            session_id=session.id,
+            user_confirmed=True,
+        )
+        session = machine.transition_to_plan(session, user_confirmed=True, command=cmd3)
 
         assert session.lifecycle_state == LifecycleState.PLAN
 
-    def test_t4_confirm_to_plan_fails_with_blocked_readiness(self):
-        """T4: CONFIRM → PLAN fails if readiness is blocked."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
-        session = StateMachine.transition_to_specify(session, findings_archived=True)
+    def test_t4_confirm_to_plan_fails_with_blocked_readiness(self) -> None:
+        """T4: CONFIRM → PLAN fails if readiness is blocked (I-02)."""
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
 
+        cmd1 = TransitionToSpecifyCommand(
+            idempotency_key="cmd_t4_blocked_001",
+            expected_version=1,
+        )
+        session = machine.transition_to_specify(
+            session, findings_archived=True, command=cmd1
+        )
+
+        # Create spec with blocking unknown
         spec = Specification(
             what="Add feature",
             why="User needs it",
@@ -104,17 +214,41 @@ class TestStateMachineTransitions:
         spec.unknowns.append(Unknown(text="Blocking unknown", blocking=True))
         spec.update_computed_fields()
 
-        session = StateMachine.transition_to_confirm(session, spec)
+        cmd2 = ConfirmSpecCommand(
+            idempotency_key="cmd_t4_blocked_002",
+            expected_version=2,
+            session_id=session.id,
+            spec=spec,
+            user_confirmed=False,
+        )
+        session = machine.transition_to_confirm(session, spec, cmd2)
+
+        from execution_core.domain.commands import TransitionToPlanCommand
+
+        cmd3 = TransitionToPlanCommand(
+            idempotency_key="cmd_t4_blocked_003",
+            expected_version=3,
+            session_id=session.id,
+            user_confirmed=True,
+        )
 
         with pytest.raises(TransitionError) as exc:
-            StateMachine.transition_to_plan(session, user_confirmed=True)
+            machine.transition_to_plan(session, user_confirmed=True, command=cmd3)
 
-        assert "readiness blocked" in str(exc.value)
+        assert "readiness blocked" in str(exc.value).lower()
 
-    def test_t5_correct_spec_returns_to_specify(self):
-        """T5: CONFIRM → SPECIFY on user correction."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
-        session = StateMachine.transition_to_specify(session, findings_archived=True)
+    def test_t5_correct_spec_returns_to_specify(self) -> None:
+        """T5: CONFIRM → SPECIFY on user correction creates revision."""
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
+
+        cmd1 = TransitionToSpecifyCommand(
+            idempotency_key="cmd_t5_001",
+            expected_version=1,
+        )
+        session = machine.transition_to_specify(
+            session, findings_archived=True, command=cmd1
+        )
 
         spec = Specification(
             what="Add feature",
@@ -124,131 +258,299 @@ class TestStateMachineTransitions:
         )
         spec.update_computed_fields()
 
-        session = StateMachine.transition_to_confirm(session, spec)
+        cmd2 = ConfirmSpecCommand(
+            idempotency_key="cmd_t5_002",
+            expected_version=2,
+            session_id=session.id,
+            spec=spec,
+            user_confirmed=False,
+        )
+        session = machine.transition_to_confirm(session, spec, cmd2)
 
         corrected_spec = spec.model_copy(deep=True)
         corrected_spec.what = "Updated feature description"
 
-        session = StateMachine.correct_spec(session, corrected_spec)
+        from execution_core.domain.commands import Command
+
+        cmd3 = Command(idempotency_key="cmd_t5_003", expected_version=3)
+        session = machine.correct_spec(session, corrected_spec, cmd3)
 
         assert session.lifecycle_state == LifecycleState.SPECIFY
         assert session.current_spec.revision == spec.revision + 1
 
-    def test_t6_plan_to_execute_with_plan_exit_rule(self):
-        """T6: PLAN → EXECUTE requires plan exit rule met."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
+    def test_t6_plan_to_execute_enforces_readiness(self) -> None:
+        """T6: PLAN → EXECUTE enforces I-02 readiness."""
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
         session.lifecycle_state = LifecycleState.PLAN
 
-        session = StateMachine.transition_to_execute(session, plan_exit_rule_met=True)
+        spec = Specification(
+            what="Feature",
+            why="Needed",
+            deliverable="Output",
+            done_when=[DoneWhenCriterion(text="Works")],
+        )
+        spec.update_computed_fields()
+        session.current_spec = spec
+
+        from execution_core.domain.commands import TransitionToExecuteCommand
+
+        cmd = TransitionToExecuteCommand(
+            idempotency_key="cmd_t6_001",
+            expected_version=1,
+            session_id=session.id,
+        )
+        session = machine.transition_to_execute(session, cmd)
 
         assert session.lifecycle_state == LifecycleState.EXECUTE
 
-    def test_t6_plan_to_execute_fails_without_exit_rule(self):
-        """T6: PLAN → EXECUTE fails if plan incomplete."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
-        session.lifecycle_state = LifecycleState.PLAN
-
-        with pytest.raises(TransitionError) as exc:
-            StateMachine.transition_to_execute(session, plan_exit_rule_met=False)
-
-        assert "plan incomplete" in str(exc.value)
-
-    def test_t7_execute_to_verify_with_completion_candidate(self):
-        """T7: EXECUTE → VERIFY with completion candidate."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
+    def test_t7_execute_to_verify_enforces_readiness(self) -> None:
+        """T7: EXECUTE → VERIFY enforces I-02 readiness."""
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
         session.lifecycle_state = LifecycleState.EXECUTE
 
-        session = StateMachine.transition_to_verify(
-            session, has_completion_candidate=True
+        spec = Specification(
+            what="Feature",
+            why="Needed",
+            deliverable="Output",
+            done_when=[DoneWhenCriterion(text="Works")],
         )
+        session.current_spec = spec
+
+        from execution_core.domain.commands import TransitionToVerifyCommand
+
+        cmd = TransitionToVerifyCommand(
+            idempotency_key="cmd_t7_001",
+            expected_version=1,
+            session_id=session.id,
+            work_completed=True,
+        )
+        session = machine.transition_to_verify(session, cmd)
 
         assert session.lifecycle_state == LifecycleState.VERIFY
 
-    def test_t8_verify_to_execute_on_failed_criteria(self):
+    def test_t8_verify_to_execute_on_failed_criteria(self) -> None:
         """T8: VERIFY → EXECUTE when criteria fail."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
         session.lifecycle_state = LifecycleState.VERIFY
 
-        session = StateMachine.return_to_execute(session, failed_criteria_count=2)
+        from execution_core.domain.commands import Command
+
+        cmd = Command(idempotency_key="cmd_t8_001", expected_version=1)
+        session = machine.return_to_execute(session, cmd)
 
         assert session.lifecycle_state == LifecycleState.EXECUTE
 
-    def test_t8_verify_to_execute_fails_with_no_failures(self):
-        """T8: VERIFY → EXECUTE fails if no criteria failed."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
+    def test_t9_verify_to_complete_enforces_evidence_gate(self) -> None:
+        """T9: VERIFY → COMPLETE enforces I-03 evidence gate."""
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
         session.lifecycle_state = LifecycleState.VERIFY
 
-        with pytest.raises(TransitionError) as exc:
-            StateMachine.return_to_execute(session, failed_criteria_count=0)
-
-        assert "no failed criteria" in str(exc.value)
-
-    def test_t9_verify_to_complete_with_satisfied_criteria(self):
-        """T9: VERIFY → COMPLETE when all criteria satisfied."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
-        session.lifecycle_state = LifecycleState.VERIFY
-
-        session = StateMachine.transition_to_complete(
-            session, all_criteria_satisfied=True
+        criterion = DoneWhenCriterion(text="Tests pass")
+        spec = Specification(
+            what="Feature",
+            why="Needed",
+            deliverable="Output",
+            done_when=[criterion],
         )
+        spec.update_computed_fields()
+        session.current_spec = spec
+
+        # Create qualifying evidence
+        evidence = Evidence(
+            id=uuid4(),
+            criterion_id=criterion.id,
+            evidence_type="test",
+            source="ci_system",
+            result=EvidenceResult.PASS,
+            authority=EvidenceAuthority.TOOL_VERIFIED,
+            spec_revision=1,
+        )
+
+        from execution_core.domain.commands import CompleteVerificationCommand
+
+        cmd = CompleteVerificationCommand(
+            idempotency_key="cmd_t9_001",
+            expected_version=1,
+            session_id=session.id,
+            evidence_ids=[evidence.id],
+        )
+        session = machine.transition_to_complete(session, [evidence], cmd)
 
         assert session.lifecycle_state == LifecycleState.COMPLETE
 
-    def test_t9_verify_to_complete_fails_without_satisfied_criteria(self):
-        """T9: VERIFY → COMPLETE fails if criteria not satisfied."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
+    def test_t9_verify_to_complete_fails_without_evidence(self) -> None:
+        """T9: VERIFY → COMPLETE fails without qualifying evidence (I-03)."""
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
         session.lifecycle_state = LifecycleState.VERIFY
 
-        with pytest.raises(TransitionError) as exc:
-            StateMachine.transition_to_complete(session, all_criteria_satisfied=False)
+        criterion = DoneWhenCriterion(text="Tests pass")
+        spec = Specification(
+            what="Feature",
+            why="Needed",
+            deliverable="Output",
+            done_when=[criterion],
+        )
+        session.current_spec = spec
 
-        assert "criteria not satisfied" in str(exc.value)
+        from execution_core.domain.commands import CompleteVerificationCommand
 
-    def test_t10_goal_revision_from_any_state_to_specify(self):
-        """T10: Any state → SPECIFY on goal revision after checkpoint."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
+        cmd = CompleteVerificationCommand(
+            idempotency_key="cmd_t9_fail",
+            expected_version=1,
+            session_id=session.id,
+            evidence_ids=[],
+        )
+
+        with pytest.raises(CompletionViolation):
+            machine.transition_to_complete(session, [], cmd)
+
+    def test_t10_goal_revision_requires_checkpoint_first(self) -> None:
+        """T10: Goal revision requires checkpoint before new spec."""
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
         session.lifecycle_state = LifecycleState.EXECUTE
 
         checkpoint = Checkpoint(
             session_id=session.id,
             lifecycle_state=LifecycleState.EXECUTE,
             restart_action="Continue implementation",
+            archive_status=ArchiveStatus.HEALTHY,
         )
 
-        session = StateMachine.revise_goal(session, checkpoint)
+        new_spec = Specification(
+            what="Revised goal",
+            why="Requirements changed",
+            deliverable="New output",
+            done_when=[DoneWhenCriterion(text="New criteria")],
+        )
+
+        cmd = ReviseGoalCommand(
+            idempotency_key="cmd_t10_001",
+            expected_version=1,
+            session_id=session.id,
+            checkpoint_id=checkpoint.id,
+            new_spec=new_spec,
+        )
+        session = machine.revise_goal(session, checkpoint, new_spec, cmd)
 
         assert session.lifecycle_state == LifecycleState.SPECIFY
 
-    def test_t11_recover_restores_checkpointed_state(self):
-        """T11: Recover command restores checkpointed state."""
-        session = StateMachine.start_session("project-1", SessionIntent.EXECUTE)
+    def test_t10_goal_revision_fails_without_checkpoint(self) -> None:
+        """T10: Goal revision fails without checkpoint."""
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
+
+        new_spec = Specification(
+            what="Revised",
+            why="Changed",
+            deliverable="New",
+            done_when=[DoneWhenCriterion(text="New")],
+        )
+
+        cmd = ReviseGoalCommand(
+            idempotency_key="cmd_t10_fail",
+            expected_version=1,
+            session_id=session.id,
+            checkpoint_id=uuid4(),
+            new_spec=new_spec,
+        )
+
+        with pytest.raises(TransitionError) as exc:
+            machine.revise_goal(session, None, new_spec, cmd)  # type: ignore
+
+        assert "checkpoint required" in str(exc.value)
+
+    def test_t11_recover_restores_state_and_renders_summary(self) -> None:
+        """T11: Recover command restores state and renders recovery summary."""
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
+
+        spec = Specification(
+            what="Feature",
+            why="Needed",
+            deliverable="Output",
+            done_when=[DoneWhenCriterion(text="Works")],
+        )
+        session.current_spec = spec
         session.lifecycle_state = LifecycleState.COMPLETE
 
         checkpoint = Checkpoint(
             session_id=session.id,
             lifecycle_state=LifecycleState.EXECUTE,
-            restart_action="Continue from last checkpoint",
+            restart_action="Continue from checkpoint",
+            archive_status=ArchiveStatus.HEALTHY,
+            spec_id=spec.id,
+            spec_revision=spec.revision,
         )
 
-        session, restored_state = StateMachine.recover(session, checkpoint)
+        cmd = RecoverCommand(
+            idempotency_key="cmd_t11_001",
+            expected_version=1,
+            session_id=session.id,
+            checkpoint_id=checkpoint.id,
+        )
+        session, summary = machine.recover(session, checkpoint, cmd)
 
         assert session.lifecycle_state == LifecycleState.EXECUTE
-        assert restored_state == LifecycleState.EXECUTE
+        assert summary.restart_action == "Continue from checkpoint"
+        assert summary.checkpoint_id == checkpoint.id
+        assert not summary.archive_degraded
 
-    def test_invalid_transition_detected(self):
-        """Invalid transitions should be detected."""
-        can_transition, error = StateMachine.can_transition(
-            LifecycleState.CONFIRM, LifecycleState.EXECUTE
+    def test_t11_recover_reports_degraded_archive(self) -> None:
+        """T11: Recover reports when archive is degraded."""
+        machine = StateMachine()
+        session = machine.start_session("project-1", SessionIntent.EXECUTE)
+
+        checkpoint = Checkpoint(
+            session_id=session.id,
+            lifecycle_state=LifecycleState.PLAN,
+            restart_action="Resume planning",
+            archive_status=ArchiveStatus.DEGRADED,
         )
 
-        assert not can_transition
+        cmd = RecoverCommand(
+            idempotency_key="cmd_t11_degraded",
+            expected_version=1,
+            session_id=session.id,
+            checkpoint_id=checkpoint.id,
+        )
+        session, summary = machine.recover(session, checkpoint, cmd)
+
+        assert summary.archive_degraded
+
+    def test_can_transition_allows_t10_any_to_specify(self) -> None:
+        """can_transition allows T10 (any → SPECIFY)."""
+        can, error = StateMachine.can_transition(
+            LifecycleState.EXECUTE, LifecycleState.SPECIFY
+        )
+        assert can
+        assert error is None
+
+    def test_can_transition_allows_t11_recover_same_state(self) -> None:
+        """can_transition allows T11 (recover to same state)."""
+        can, error = StateMachine.can_transition(
+            LifecycleState.EXECUTE, LifecycleState.EXECUTE
+        )
+        assert can
+        assert error is None
+
+    def test_invalid_transition_detected(self) -> None:
+        """Invalid transitions should be detected."""
+        can, error = StateMachine.can_transition(
+            LifecycleState.CONFIRM, LifecycleState.COMPLETE
+        )
+        assert not can
         assert "Invalid transition" in error
 
-    def test_valid_transition_allowed(self):
-        """Valid transitions should be allowed."""
-        can_transition, error = StateMachine.can_transition(
+    def test_valid_sequential_transition_allowed(self) -> None:
+        """Valid sequential transitions should be allowed."""
+        can, error = StateMachine.can_transition(
             LifecycleState.PLAN, LifecycleState.EXECUTE
         )
-
-        assert can_transition
+        assert can
         assert error is None
