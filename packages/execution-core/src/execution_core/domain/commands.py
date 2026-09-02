@@ -13,6 +13,7 @@ class Command(BaseModel):
 
     idempotency_key: str
     expected_version: int
+    source: str = "user"  # Source of command: user, repository, tool_output
     issued_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
