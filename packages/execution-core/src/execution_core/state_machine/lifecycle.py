@@ -9,7 +9,7 @@ from ..domain.commands import (
     ConcurrencyError,
     DuplicateCommandError,
 )
-from ..domain.enums import LifecycleState, Readiness, SessionIntent
+from ..domain.enums import LifecycleState, SessionIntent
 from ..domain.evidence import Evidence
 from ..domain.session import ExecutionSession
 from ..domain.specification import Specification
