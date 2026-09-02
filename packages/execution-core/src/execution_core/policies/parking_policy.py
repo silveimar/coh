@@ -1,6 +1,6 @@
 """Parking policy enforcing I-10 (parking preserves focus) and I-11 (drift)."""
 
-from ..domain.enums import RelevanceLevel
+from ..domain.enums import RelevanceLevel, SessionIntent
 from ..domain.parking_item import ParkingItem
 from ..domain.task import Task, TaskProgressRecord
 
@@ -57,7 +57,7 @@ class ProgressPolicy:
 
     @staticmethod
     def require_progress_before_switch(
-        task: Task, progress_record: TaskProgressRecord
+        task: Task, progress_record: TaskProgressRecord | None
     ) -> bool:
         """Enforce I-05: unfinished task must have progress before switch."""
         if task.status in ["in_progress", "blocked"] and not progress_record:
@@ -85,16 +85,20 @@ class DriftPolicy:
 
     @staticmethod
     def is_drift(
-        session_intent: str, current_action: str, objective: str
+        session_intent: SessionIntent, current_action: str, objective: str
     ) -> tuple[bool, str]:
-        """Intent-relative drift detection."""
+        """
+        Intent-relative drift detection (I-11).
+
+        Returns (is_drift, reason) tuple.
+        """
         drift_signals = {
-            "execute": ["plan", "brainstorm", "unrelated"],
-            "plan": ["implement", "test", "unrelated"],
-            "brainstorm": ["implement", "converge_without_evaluation"],
-            "review": ["modify", "implement"],
-            "study": ["tangent", "unrelated"],
-            "recover": ["new_scope"],
+            SessionIntent.EXECUTE: ["plan", "brainstorm", "unrelated"],
+            SessionIntent.PLAN: ["implement", "test", "unrelated"],
+            SessionIntent.BRAINSTORM: ["implement", "converge_without_evaluation"],
+            SessionIntent.REVIEW: ["modify", "implement"],
+            SessionIntent.STUDY: ["tangent", "unrelated"],
+            SessionIntent.RECOVER: ["new_scope"],
         }
 
         signals = drift_signals.get(session_intent, [])
@@ -102,6 +106,35 @@ class DriftPolicy:
 
         for signal in signals:
             if signal in action_lower:
-                return True, f"Drift detected: {signal} deviates from {session_intent}"
+                return (
+                    True,
+                    f"Drift detected: {signal} deviates from {session_intent.value}",
+                )
 
         return False, ""
+
+    @staticmethod
+    def evaluate_detour(
+        current_action: str, objective: str, session_intent: SessionIntent
+    ) -> tuple[bool, str, list[str]]:
+        """
+        Evaluate if current action is intentional detour or drift.
+
+        Returns (is_detour, recommendation, alternatives).
+        """
+        is_drift_detected, reason = DriftPolicy.is_drift(
+            session_intent, current_action, objective
+        )
+
+        if not is_drift_detected:
+            return False, "Continue", []
+
+        # Provide recommendation and alternatives
+        recommendation = "Investigate relevance before continuing"
+        alternatives = [
+            "Continue intentionally and record detour",
+            "Park discovery and return to objective",
+            "Revise goal if discovery invalidates objective",
+        ]
+
+        return True, recommendation, alternatives

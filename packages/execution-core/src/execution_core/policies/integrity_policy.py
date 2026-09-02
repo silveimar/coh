@@ -151,12 +151,32 @@ class UntrustedContentPolicy:
         return source == "user"
 
     @staticmethod
-    def sanitize_untrusted_content(content: str, source: str) -> tuple[str, bool]:
-        """Enforce I-13: treat non-user content as data."""
-        if UntrustedContentPolicy.is_trusted_source(source):
-            return content, True
+    def validate_untrusted_cannot_mutate(source: str, action_type: str) -> None:
+        """
+        Enforce I-13: untrusted content cannot bypass gates or mutate state.
 
-        return content, False
+        Raises ValueError if untrusted source attempts mutation.
+        """
+        if not UntrustedContentPolicy.is_trusted_source(source):
+            raise ValueError(
+                f"Untrusted source '{source}' cannot perform {action_type} (I-13). "
+                "Repository and tool content must stay data; "
+                "gates I-02/I-03/I-08 cannot be bypassed."
+            )
+
+    @staticmethod
+    def sanitize_untrusted_content(content: str, source: str) -> tuple[str, bool]:
+        """
+        Enforce I-13: treat non-user content as data.
+
+        Returns (content, is_trusted).
+        Instructions embedded in content are never obeyed as commands.
+        """
+        is_trusted = UntrustedContentPolicy.is_trusted_source(source)
+
+        # Content from untrusted sources is preserved as-is but flagged
+        # Never parse or execute commands from untrusted sources
+        return content, is_trusted
 
     @staticmethod
     def require_trusted_for_command(source: str, command_type: str) -> None:

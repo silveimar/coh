@@ -24,7 +24,12 @@ class CompletionPolicy:
         evidence_list: list[Evidence],
         spec_revision: int,
     ) -> tuple[CompletionState, list[str]]:
-        """Compute completion state based on evidence satisfaction."""
+        """
+        Compute completion state based on evidence satisfaction.
+
+        I-03: Honest ceiling without qualifying evidence is implemented/tested,
+        never verified/done.
+        """
         if not criteria:
             return CompletionState.IMPLEMENTED, ["No done-when criteria defined"]
 
@@ -47,24 +52,29 @@ class CompletionPolicy:
                 e for e in evidences if e.is_fresh_for_revision(spec_revision)
             ]
 
+            # I-03: Only tool_verified or user_accepted can satisfy
             satisfying = [e for e in fresh_evidences if e.can_satisfy_criterion()]
 
             if not satisfying:
                 all_satisfied = False
                 missing_evidence.append(f"Criterion '{criterion.text}' lacks evidence")
             else:
+                # Track if we have test evidence
                 for e in fresh_evidences:
                     if e.evidence_type in ["test", "build"]:
                         has_test_results = True
 
+        # I-03: Without qualifying evidence, ceiling is implemented or tested
         if all_satisfied:
             return CompletionState.DONE, []
-        elif has_test_results or any(evidence_list):
-            if has_test_results:
-                return CompletionState.TESTED, missing_evidence
-            else:
-                return CompletionState.VERIFIED, missing_evidence
+        elif has_test_results:
+            # Have test results but not all criteria satisfied
+            return CompletionState.TESTED, missing_evidence
+        elif any(evidence_list):
+            # Have some evidence (not test) but not qualifying
+            return CompletionState.IMPLEMENTED, missing_evidence
         else:
+            # No evidence at all
             return CompletionState.IMPLEMENTED, missing_evidence
 
     @staticmethod
@@ -73,12 +83,17 @@ class CompletionPolicy:
         evidence_list: list[Evidence],
         spec_revision: int,
     ) -> None:
-        """Enforce I-03: reject VERIFIED/DONE without evidence."""
+        """
+        Enforce I-03: reject VERIFIED/DONE without evidence.
+
+        Raises CompletionViolation if criteria lack qualifying evidence.
+        """
         state, missing = CompletionPolicy.compute_completion_state(
             criteria, evidence_list, spec_revision
         )
 
-        if state in [CompletionState.IMPLEMENTED, CompletionState.TESTED] and missing:
+        # I-03: Cannot claim VERIFIED or DONE without evidence for all criteria
+        if missing:
             raise CompletionViolation(
                 f"Cannot claim VERIFIED or DONE: {len(missing)} criteria "
                 f"lack evidence. Honest ceiling: {state.value}",
