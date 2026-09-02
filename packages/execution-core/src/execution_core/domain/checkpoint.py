@@ -22,6 +22,7 @@ class Checkpoint(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     session_id: UUID
     lifecycle_state: LifecycleState
+    spec_snapshot: "Specification | None" = None
     spec_id: UUID | None = None
     spec_revision: int | None = None
     current_task_id: UUID | None = None
@@ -37,6 +38,11 @@ class Checkpoint(BaseModel):
         self.archive_status = ArchiveStatus.DEGRADED
 
 
+from ..domain.specification import Specification  # noqa: E402
+
+Checkpoint.model_rebuild()
+
+
 class RecoverySummary(BaseModel):
     """Structured output for resuming a session."""
 
@@ -50,4 +56,5 @@ class RecoverySummary(BaseModel):
     parked_count: int = 0
     restart_action: str
     archive_degraded: bool = False
+    archive_references: list[ArchiveReference] = Field(default_factory=list)
     checkpoint_id: UUID

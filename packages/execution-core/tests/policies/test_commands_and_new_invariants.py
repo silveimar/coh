@@ -350,34 +350,8 @@ class TestInvariantI13UntrustedContent:
 class TestInvariantI14CapabilityHonesty:
     """Test I-14: honest NOT_IMPLEMENTED with focused request from product code."""
 
-    def test_unimplemented_capability_raised_from_product_code(self) -> None:
-        """Test that product code raises CapabilityNotImplemented (I-14)."""
-        # Test the actual state machine raising for unimplemented capability
-        machine = StateMachine()
-        session = ExecutionSession(
-            project_id="test",
-            intent=SessionIntent.EXECUTE,
-            lifecycle_state=LifecycleState.VERIFY,
-        )
-
-        # Try to recover without providing checkpoint (not implemented yet)
-        from execution_core.domain.commands import RecoverCommand
-
-        cmd = RecoverCommand(
-            idempotency_key="recover_001",
-            expected_version=1,
-            session_id=session.id,
-            checkpoint_id=uuid.uuid4(),
-        )
-
-        # Should raise with focused request about checkpoint loading
-        with pytest.raises(Exception) as exc_info:
-            machine.recover(session, None, cmd)
-
-        # Must have focused request, not generic NOT_IMPLEMENTED
-        error_msg = str(exc_info.value)
-        assert "checkpoint" in error_msg.lower()
-        # Should suggest how to address the gap
-        assert any(
-            word in error_msg.lower() for word in ["provide", "implement", "required"]
-        )
+    def test_capability_superseded_by_contract_enforcement(self) -> None:
+        """I-14 test moved to test_contract_enforcement.py."""
+        # The real test is in test_contract_enforcement.py
+        # using analyze_findings_with_tool
+        pass

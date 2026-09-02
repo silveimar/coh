@@ -66,6 +66,24 @@ class StateMachine:
         """Record processed command."""
         self.command_history.record(command.idempotency_key, command_id)
 
+    def analyze_findings_with_tool(
+        self, session: ExecutionSession, tool_name: str, findings: str
+    ) -> dict:
+        """Analyze inspection findings using external tool (requires adapter).
+
+        This capability is not implemented in v0.1 (I-14).
+        Raises CapabilityNotImplemented with focused request for adapter setup.
+        """
+        raise CapabilityNotImplemented(
+            capability=f"tool_adapter_{tool_name}",
+            focused_request=(
+                f"To analyze findings with {tool_name}, install the tool adapter: "
+                f"See docs/adapters/tool-integration.md for setup. "
+                f"The adapter provides structured analysis of inspection findings "
+                f"before spec creation."
+            ),
+        )
+
     @staticmethod
     def start_session(project_id: str, intent: SessionIntent) -> ExecutionSession:
         """T1: (session start) → INSPECT."""
@@ -136,7 +154,7 @@ class StateMachine:
         session: ExecutionSession,
         user_confirmed: bool,
         command: Command,
-        change_scope: str = "small",
+        change_scope: str,
     ) -> ExecutionSession:
         """T4: CONFIRM → PLAN (I-02 readiness, I-08 confirmation enforced)."""
         self._check_command(command, session)
@@ -164,10 +182,11 @@ class StateMachine:
             change_scope, user_confirmed
         )
 
-        # Fully inferable case: ready spec with no blocking uncertainty
-        if session.current_spec.readiness != Readiness.READY and not user_confirmed:
+        # Even READY + small requires confirmation
+        # (fully inferable is narrow exception, not implemented)
+        if not user_confirmed:
             raise TransitionError(
-                "Cannot transition to PLAN: spec not confirmed",
+                "Cannot transition to PLAN: confirmation required",
                 "User confirmation required (I-08)",
                 "Confirm or correct the specification",
             )
@@ -206,7 +225,8 @@ class StateMachine:
         self,
         session: ExecutionSession,
         command: Command,
-        tasks: list[Task] | None = None,
+        tasks: list[Task],
+        completed_task_ids: set[UUID] | None = None,
     ) -> ExecutionSession:
         """T6: PLAN → EXECUTE (I-02 readiness, plan-exit rule enforced)."""
         self._check_command(command, session)
@@ -228,47 +248,61 @@ class StateMachine:
                 "Create and confirm specification first",
             )
 
-        # T6 plan-exit rule: foreground must be computed (1 NOW + ≤2 NEXT)
-        # with required metadata and no blocked dependencies
-        if tasks is not None:
-            foreground = ForegroundPolicy.calculate_foreground(
-                session.id,
-                session.current_spec.what,
-                tasks,
-                parked_count=0,
+        # T6 plan-exit rule: evaluate foreground (1 NOW + ≤2 NEXT)
+        # Even if tasks is empty list, this is a failed guard
+        if completed_task_ids is None:
+            completed_task_ids = set()
+
+        foreground = ForegroundPolicy.calculate_foreground(
+            session.id,
+            session.current_spec.what,
+            tasks,
+            parked_count=0,
+        )
+
+        # Must have exactly 1 NOW task
+        if not foreground.now_task:
+            raise TransitionError(
+                "Cannot transition to EXECUTE: no NOW task",
+                "Foreground must have exactly 1 NOW task with metadata",
+                "Define NOW task with action_literal, done_when, estimates",
             )
 
-            # Must have exactly 1 NOW task
-            if not foreground.now_task:
-                raise TransitionError(
-                    "Cannot transition to EXECUTE: no NOW task",
-                    "Foreground must have exactly 1 NOW task with metadata",
-                    "Define NOW task with action_literal, done_when, estimates",
-                )
+        # NOW task must have required metadata
+        now = foreground.now_task
+        if not all(
+            [
+                now.action_literal,
+                now.estimated_minutes,
+                now.energy,
+                now.activation_friction,
+            ]
+        ):
+            raise TransitionError(
+                "Cannot transition to EXECUTE: NOW task missing metadata",
+                "NOW task requires action_literal, minutes, energy, friction",
+                "Complete NOW task metadata",
+            )
 
-            # NOW task must have required metadata
-            now = foreground.now_task
-            if not all(
-                [
-                    now.action_literal,
-                    now.minutes_estimate,
-                    now.energy_level,
-                    now.activation_friction,
-                ]
-            ):
-                raise TransitionError(
-                    "Cannot transition to EXECUTE: NOW task missing metadata",
-                    "NOW task requires action_literal, minutes, energy, friction",
-                    "Complete NOW task metadata",
-                )
+        # NOW task cannot have unresolved dependencies
+        has_unresolved, _ = now.has_unresolved_dependencies(completed_task_ids)
+        if has_unresolved:
+            raise TransitionError(
+                "Cannot transition to EXECUTE: NOW has blocked dependencies",
+                "NOW task has unresolved dependencies",
+                "Resolve dependencies before execution",
+            )
 
-            # NOW task cannot have unresolved dependencies
-            if now.dependencies and not all(d.resolved for d in now.dependencies):
-                raise TransitionError(
-                    "Cannot transition to EXECUTE: NOW has blocked dependencies",
-                    "NOW task has unresolved dependencies",
-                    "Resolve dependencies before execution",
-                )
+        # NEXT must be ≤2
+        next_count = (1 if foreground.next_1_task else 0) + (
+            1 if foreground.next_2_task else 0
+        )
+        if next_count > 2:
+            raise TransitionError(
+                "Cannot transition to EXECUTE: too many NEXT tasks",
+                f"Foreground has {next_count} NEXT tasks (max 2)",
+                "Reduce NEXT tasks to 2 or fewer",
+            )
 
         session.lifecycle_state = LifecycleState.EXECUTE
         session.increment_version()
@@ -395,13 +429,13 @@ class StateMachine:
 
         # Load latest valid checkpoint if not provided
         if not checkpoint:
-            # In full implementation, load from checkpoint repository
-            # For now, require checkpoint to be passed
-            raise TransitionError(
-                "Cannot recover: no checkpoint provided",
-                "Checkpoint is required for recovery",
-                "Provide checkpoint or implement checkpoint loading",
-            )
+            checkpoint = session.get_latest_checkpoint()
+            if not checkpoint:
+                raise TransitionError(
+                    "Cannot recover: no checkpoints available",
+                    "Session has no checkpoints to recover from",
+                    "Create a checkpoint before attempting recovery",
+                )
 
         if checkpoint.session_id != session.id:
             raise TransitionError(
@@ -414,24 +448,20 @@ class StateMachine:
         restored_state = checkpoint.lifecycle_state
         session.lifecycle_state = restored_state
 
-        # Actually restore spec from checkpoint
-        if checkpoint.spec_id and checkpoint.spec_revision:
-            # In full implementation, load spec from spec repository
-            # For now, verify current spec matches checkpoint
-            if session.current_spec:
-                if (
-                    session.current_spec.id == checkpoint.spec_id
-                    and session.current_spec.revision == checkpoint.spec_revision
-                ):
-                    # Spec already matches
-                    pass
-                else:
-                    # Create a revision to match checkpoint
-                    restored_spec = session.current_spec.model_copy(deep=True)
-                    restored_spec.revision = checkpoint.spec_revision
-                    session.current_spec = restored_spec
+        # Actually restore spec from checkpoint snapshot
+        if checkpoint.spec_snapshot:
+            session.current_spec = checkpoint.spec_snapshot.model_copy(deep=True)
+        elif checkpoint.spec_id and session.current_spec:
+            # Fallback: if no snapshot but spec_id matches, keep current
+            if session.current_spec.id != checkpoint.spec_id:
+                raise TransitionError(
+                    "Cannot recover: spec mismatch",
+                    f"Checkpoint references spec {checkpoint.spec_id} "
+                    f"but current spec is {session.current_spec.id}",
+                    "Provide checkpoint with spec snapshot",
+                )
 
-        # Build recovery summary with restart_action and archive status
+        # Build recovery summary with restart_action, archive status, and refs
         summary = RecoverySummary(
             goal=session.current_spec.what if session.current_spec else "Unknown",
             why=session.current_spec.why if session.current_spec else "Unknown",
@@ -442,6 +472,7 @@ class StateMachine:
             parked_count=0,
             restart_action=checkpoint.restart_action,
             archive_degraded=(checkpoint.archive_status.value == "degraded"),
+            archive_references=checkpoint.archive_references,
             checkpoint_id=checkpoint.id,
         )
 
