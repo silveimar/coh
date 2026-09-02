@@ -26,6 +26,7 @@ from execution_core.domain.specification import (
     Unknown,
 )
 from execution_core.policies.completion_policy import CompletionViolation
+from execution_core.policies.readiness_policy import ReadinessViolation
 from execution_core.state_machine.lifecycle import StateMachine, TransitionError
 
 
@@ -49,6 +50,8 @@ class TestStateMachineTransitions:
         cmd = TransitionToSpecifyCommand(
             idempotency_key="cmd_t2_001",
             expected_version=1,
+            session_id=session.id,
+            findings_archived=True,
         )
         session = machine.transition_to_specify(
             session, findings_archived=True, command=cmd
@@ -65,6 +68,8 @@ class TestStateMachineTransitions:
         cmd = TransitionToSpecifyCommand(
             idempotency_key="cmd_t2_fail",
             expected_version=1,
+            session_id=session.id,
+            findings_archived=True,
         )
 
         with pytest.raises(TransitionError) as exc:
@@ -80,6 +85,8 @@ class TestStateMachineTransitions:
         cmd = TransitionToSpecifyCommand(
             idempotency_key="cmd_t2_stale",
             expected_version=99,  # Wrong version
+            session_id=session.id,
+            findings_archived=True,
         )
 
         with pytest.raises(ConcurrencyError):
@@ -93,6 +100,8 @@ class TestStateMachineTransitions:
         cmd1 = TransitionToSpecifyCommand(
             idempotency_key="cmd_t3_001",
             expected_version=1,
+            session_id=session.id,
+            findings_archived=True,
         )
         session = machine.transition_to_specify(
             session, findings_archived=True, command=cmd1
@@ -104,6 +113,7 @@ class TestStateMachineTransitions:
             deliverable="Working feature",
             done_when=[DoneWhenCriterion(text="Feature works")],
         )
+        spec.update_computed_fields()
 
         cmd2 = ConfirmSpecCommand(
             idempotency_key="cmd_t3_002",
@@ -125,12 +135,15 @@ class TestStateMachineTransitions:
         cmd1 = TransitionToSpecifyCommand(
             idempotency_key="cmd_t3_fail_001",
             expected_version=1,
+            session_id=session.id,
+            findings_archived=True,
         )
         session = machine.transition_to_specify(
             session, findings_archived=True, command=cmd1
         )
 
         spec = Specification(what="Add feature", why="", deliverable="", done_when=[])
+        spec.update_computed_fields()
 
         cmd2 = ConfirmSpecCommand(
             idempotency_key="cmd_t3_fail_002",
@@ -154,6 +167,8 @@ class TestStateMachineTransitions:
         cmd1 = TransitionToSpecifyCommand(
             idempotency_key="cmd_t4_001",
             expected_version=1,
+            session_id=session.id,
+            findings_archived=True,
         )
         session = machine.transition_to_specify(
             session, findings_archived=True, command=cmd1
@@ -199,6 +214,8 @@ class TestStateMachineTransitions:
         cmd1 = TransitionToSpecifyCommand(
             idempotency_key="cmd_t4_blocked_001",
             expected_version=1,
+            session_id=session.id,
+            findings_archived=True,
         )
         session = machine.transition_to_specify(
             session, findings_archived=True, command=cmd1
@@ -211,6 +228,7 @@ class TestStateMachineTransitions:
             deliverable="Working feature",
             done_when=[DoneWhenCriterion(text="Feature works")],
         )
+        spec.update_computed_fields()
         spec.unknowns.append(Unknown(text="Blocking unknown", blocking=True))
         spec.update_computed_fields()
 
@@ -232,10 +250,10 @@ class TestStateMachineTransitions:
             user_confirmed=True,
         )
 
-        with pytest.raises(TransitionError) as exc:
+        with pytest.raises(ReadinessViolation) as exc:
             machine.transition_to_plan(session, user_confirmed=True, command=cmd3)
 
-        assert "readiness blocked" in str(exc.value).lower()
+        assert "readiness" in str(exc.value).lower()
 
     def test_t5_correct_spec_returns_to_specify(self) -> None:
         """T5: CONFIRM → SPECIFY on user correction creates revision."""
@@ -245,6 +263,8 @@ class TestStateMachineTransitions:
         cmd1 = TransitionToSpecifyCommand(
             idempotency_key="cmd_t5_001",
             expected_version=1,
+            session_id=session.id,
+            findings_archived=True,
         )
         session = machine.transition_to_specify(
             session, findings_archived=True, command=cmd1
@@ -316,6 +336,7 @@ class TestStateMachineTransitions:
             deliverable="Output",
             done_when=[DoneWhenCriterion(text="Works")],
         )
+        spec.update_computed_fields()
         session.current_spec = spec
 
         from execution_core.domain.commands import TransitionToVerifyCommand
@@ -367,7 +388,9 @@ class TestStateMachineTransitions:
             source="ci_system",
             result=EvidenceResult.PASS,
             authority=EvidenceAuthority.TOOL_VERIFIED,
+            spec_id=spec.id,
             spec_revision=1,
+            summary="All tests passed",
         )
 
         from execution_core.domain.commands import CompleteVerificationCommand
@@ -395,6 +418,7 @@ class TestStateMachineTransitions:
             deliverable="Output",
             done_when=[criterion],
         )
+        spec.update_computed_fields()
         session.current_spec = spec
 
         from execution_core.domain.commands import CompleteVerificationCommand
@@ -428,6 +452,7 @@ class TestStateMachineTransitions:
             deliverable="New output",
             done_when=[DoneWhenCriterion(text="New criteria")],
         )
+        new_spec.update_computed_fields()
 
         cmd = ReviseGoalCommand(
             idempotency_key="cmd_t10_001",
@@ -451,6 +476,7 @@ class TestStateMachineTransitions:
             deliverable="New",
             done_when=[DoneWhenCriterion(text="New")],
         )
+        new_spec.update_computed_fields()
 
         cmd = ReviseGoalCommand(
             idempotency_key="cmd_t10_fail",
@@ -476,6 +502,7 @@ class TestStateMachineTransitions:
             deliverable="Output",
             done_when=[DoneWhenCriterion(text="Works")],
         )
+        spec.update_computed_fields()
         session.current_spec = spec
         session.lifecycle_state = LifecycleState.COMPLETE
 
