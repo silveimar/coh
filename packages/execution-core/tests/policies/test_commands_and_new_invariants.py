@@ -188,8 +188,7 @@ class TestInvariantI09CheckpointProvenance:
         )
 
         assert (
-            checkpoint.restart_action
-            == "Resume implementation from line 42 in api.py"
+            checkpoint.restart_action == "Resume implementation from line 42 in api.py"
         )
         assert checkpoint.archive_status == ArchiveStatus.HEALTHY
 
@@ -380,6 +379,5 @@ class TestInvariantI14CapabilityHonesty:
         assert "checkpoint" in error_msg.lower()
         # Should suggest how to address the gap
         assert any(
-            word in error_msg.lower()
-            for word in ["provide", "implement", "required"]
+            word in error_msg.lower() for word in ["provide", "implement", "required"]
         )

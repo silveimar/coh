@@ -263,9 +263,7 @@ class StateMachine:
                 )
 
             # NOW task cannot have unresolved dependencies
-            if now.dependencies and not all(
-                d.resolved for d in now.dependencies
-            ):
+            if now.dependencies and not all(d.resolved for d in now.dependencies):
                 raise TransitionError(
                     "Cannot transition to EXECUTE: NOW has blocked dependencies",
                     "NOW task has unresolved dependencies",
