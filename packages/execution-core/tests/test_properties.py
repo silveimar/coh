@@ -125,7 +125,10 @@ class TestForegroundProperties:
         num_completed=st.integers(min_value=0, max_value=5),
     )
     def test_task_with_unresolved_deps_not_now(self, num_deps, num_completed):
-        """Property: Task with unresolved dependencies cannot become NOW via foreground policy."""
+        """
+        Property: Task with unresolved dependencies cannot become NOW
+        via foreground policy.
+        """
         session_id = uuid4()
         spec_id = uuid4()
 

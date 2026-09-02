@@ -1,6 +1,6 @@
 """Task domain model with foreground metadata and dependencies."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -75,32 +75,32 @@ class Task(BaseModel):
     def mark_started(self) -> None:
         """Mark task as in progress."""
         self.status = TaskStatus.IN_PROGRESS
-        self.started_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.started_at = datetime.now(UTC)
+        self.updated_at = datetime.now(UTC)
 
     def mark_completed(self) -> None:
         """Mark task as completed."""
         self.status = TaskStatus.COMPLETED
-        self.completed_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.completed_at = datetime.now(UTC)
+        self.updated_at = datetime.now(UTC)
 
     def mark_blocked(self, reason: str) -> None:
         """Mark task as blocked with a reason."""
         self.status = TaskStatus.BLOCKED
         self.blocked_reason = reason
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(UTC)
 
     def park(self) -> None:
         """Park the task without changing NOW."""
         self.status = TaskStatus.PARKED
         self.foreground_position = ForegroundPosition.BACKGROUND
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(UTC)
 
     def abandon(self) -> None:
         """Mark task as abandoned."""
         self.status = TaskStatus.ABANDONED
         self.foreground_position = ForegroundPosition.BACKGROUND
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(UTC)
 
 
 class TaskProgressRecord(BaseModel):
@@ -108,18 +108,18 @@ class TaskProgressRecord(BaseModel):
 
     task_id: UUID
     status: TaskStatus
-    last_update: datetime = Field(default_factory=datetime.utcnow)
+    last_update: datetime = Field(default_factory=lambda: datetime.now(UTC))
     completed_work: list[str] = Field(default_factory=list)
     attempted_work: list[str] = Field(default_factory=list)
     blockers: list[str] = Field(default_factory=list)
     next_steps: list[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     revision: int = 1
 
     def create_revision(self) -> "TaskProgressRecord":
         """Create a new revision superseding this one."""
         new_record = self.model_copy(deep=True)
         new_record.revision = self.revision + 1
-        new_record.created_at = datetime.utcnow()
-        new_record.last_update = datetime.utcnow()
+        new_record.created_at = datetime.now(UTC)
+        new_record.last_update = datetime.now(UTC)
         return new_record

@@ -1,6 +1,6 @@
 """Parking lot for secondary actions and discoveries."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -30,13 +30,13 @@ class ParkingItem(BaseModel):
     def promote_to_task(self, task_id: UUID) -> None:
         """Mark item as promoted to a planned task."""
         self.status = ParkingItemStatus.PROMOTED
-        self.promoted_at = datetime.utcnow()
+        self.promoted_at = datetime.now(UTC)
         self.promoted_to_task_id = task_id
 
     def dismiss(self, reason: str) -> None:
         """Mark item as dismissed with a reason."""
         self.status = ParkingItemStatus.DISMISSED
-        self.dismissed_at = datetime.utcnow()
+        self.dismissed_at = datetime.now(UTC)
         self.dismissal_reason = reason
 
     @staticmethod

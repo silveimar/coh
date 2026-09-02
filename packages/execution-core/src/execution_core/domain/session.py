@@ -1,6 +1,6 @@
 """Execution session aggregate root."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -24,4 +24,4 @@ class ExecutionSession(BaseModel):
     def increment_version(self) -> None:
         """Increment version for optimistic concurrency control."""
         self.version += 1
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(UTC)

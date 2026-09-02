@@ -1,6 +1,6 @@
 """Foreground domain model for NOW + NEXT 2 execution surface."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -37,7 +37,8 @@ class Foreground(BaseModel):
             ):
                 violations.append(
                     "NOW task missing required metadata "
-                    "(action_literal, done_when_condition, estimated_minutes, energy, activation_friction)"
+                    "(action_literal, done_when_condition, "
+                    "estimated_minutes, energy, activation_friction)"
                 )
 
         next_count = sum([self.next_1_task is not None, self.next_2_task is not None])
@@ -50,5 +51,5 @@ class Foreground(BaseModel):
         """Create a new foreground revision."""
         new_fg = self.model_copy(deep=True)
         new_fg.revision = self.revision + 1
-        new_fg.calculated_at = datetime.utcnow()
+        new_fg.calculated_at = datetime.now(UTC)
         return new_fg
