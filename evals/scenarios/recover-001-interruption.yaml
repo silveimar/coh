@@ -1,0 +1,47 @@
+id: recover-001-interruption
+version: 1
+contract_version: "1.0.0"
+title: Interruption writes progress record + checkpoint; resume renders full recovery summary
+category: recovery
+intent: recover
+tags: [interruption, checkpoint, resume, restart-action]
+
+setup:
+  project_context: >
+    Mid-EXECUTE fixture: task_001 ("create deterministic reproduction") in progress,
+    one blocker known (CI env differs), one decision recorded, one parked item.
+  prior_state:
+    lifecycle_state: EXECUTE
+    now_task: {id: task_001, status: in_progress}
+    decisions: [decision_01]
+    parked_items: [park_01]
+
+steps:
+  - system_event: {kind: interruption, reason: session_exit}
+    expect:
+      invariants: [I-05]
+      forbidden_actions: [foreground_switch_before_progress_record]
+  - system_event: {kind: session_resume}
+  - user_message: "where were we?"
+
+expected:
+  final_state: EXECUTE
+  transitions: [T11]
+  invariants: [I-05, I-09, I-04]
+  required_output_sections: [GOAL, WHY, LAST_VERIFIED, LAST_DECISION, NOW, NEXT_2, PARKED_COUNT, START_HERE]
+  must_include:
+    - "START HERE"            # literal restart_action rendered
+  must_not_include:
+    - "scroll up"             # user must never be sent to chat history
+    - "as discussed earlier"
+  forbidden_actions: [context_reconstruction_request]
+  archive_expectations:
+    entries: [{actor: agent, type: checkpoint}]
+    append_only: true
+  severity: normal
+
+rubric_focus: [usefulness, grounding, concision]
+notes: >
+  The core Recover promise: interruption → progress record (status, last update,
+  completed/attempted work, blockers, ordered next steps) BEFORE anything else;
+  resume → complete structured summary + exact restart_action, zero chat archaeology.

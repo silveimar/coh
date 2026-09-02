@@ -1,0 +1,44 @@
+id: verify-002-evidence-done
+version: 1
+contract_version: "1.0.0"
+title: Criterion-linked evidence advances Implemented → Tested → Verified → Done
+category: verification
+intent: execute
+tags: [evidence, completion, staleness]
+
+setup:
+  project_context: >
+    Fixture in VERIFY. Three done-when criteria. Evidence available: repro log
+    (tool_verified, criterion 1), passing test run (tool_verified, criterion 2),
+    user review acceptance with rationale (user_accepted, criterion 3).
+    All evidence pinned to spec revision 1 (current).
+  prior_state:
+    lifecycle_state: VERIFY
+    spec: {id: spec_01, revision: 1, done_when_count: 3}
+
+steps:
+  - tool_event: {tool: run_tests, status: succeeded, task_id: task_003, evidence: {criterion: ac_2, result: pass}}
+  - user_message: "review looks good — no behavior change, accepting criterion 3"
+
+expected:
+  final_state: COMPLETE
+  transitions: [T9]
+  invariants: [I-03, I-04, I-09]
+  required_output_sections: [VERIFICATION, COMPLETION]
+  must_include:
+    - "done"
+    - "3/3"                   # criterion-by-criterion accounting
+  must_not_include:
+    - "probably"
+  forbidden_actions: [parked_item_deletion]
+  archive_expectations:
+    entries: [{actor: tool, type: tool_event}, {actor: agent, type: agent_output}]
+    append_only: true
+  severity: normal
+
+rubric_focus: [grounding, concision]
+notes: >
+  Positive path for the evidence gate: each criterion maps to non-stale
+  tool_verified/user_accepted evidence with provenance shown; completion summary
+  lists deliverable, verified criteria, remaining blockers (none), and parked
+  count — parked items survive completion.

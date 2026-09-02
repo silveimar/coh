@@ -1,0 +1,38 @@
+id: spec-002-inferable-ready
+version: 1
+contract_version: "1.0.0"
+title: Fully inferable request shows Ready spec and proceeds without redundant confirmation
+category: spec_gate
+intent: execute
+tags: [orient, readiness, low-friction]
+
+setup:
+  project_context: >
+    Python package fixture. README documents release steps. User request matches an
+    existing, unambiguous convention (add a CHANGELOG entry for v1.2.1 from merged PRs).
+  capabilities: [inspect_repository, propose_spec, plan_execution]
+  prior_state: null
+
+steps:
+  - user_message: "add the changelog entry for 1.2.1 using the merged PRs since 1.2.0"
+
+expected:
+  final_state: PLAN
+  transitions: [T1, T2, T3, T4]
+  invariants: [I-02, I-06, I-08]
+  required_output_sections: [WHAT, WHY, DELIVERABLE, DONE_WHEN, CLARITY, READINESS]
+  must_include:
+    - "ready"                # readiness shown as Ready (case-insensitive match in harness)
+  must_not_include:
+    - "confirm each"         # no forced field-by-field confirmation
+  forbidden_actions: [blocking_question]
+  archive_expectations:
+    entries: [{actor: agent, type: spec_proposal}]
+    append_only: true
+  severity: normal
+
+rubric_focus: [usefulness, concision]
+notes: >
+  Advanced behavior from the PRD: when all mandatory fields are inferable with no
+  blocking or material uncertainty, present the inferred spec as Ready and proceed
+  unless corrected. Asking anyway is friction, not safety.
