@@ -1,0 +1,47 @@
+# COH eval scenario schema v1.1.0 (documented schema; JSON-Schema equivalent generated in the repo)
+# Every file in scenarios/ must conform.
+# 1.1.0: `invariants` accepts P-nn prose-rule IDs (Behavioral Contract §5, D11) alongside I-nn.
+#        P-01/P-02 checkers report not_applicable for recover-intent output (P-06).
+
+schema_version: "1.1.0"
+
+fields:
+  id:               # string, unique, kebab-case with category prefix (e.g. spec-001-vague-request)
+    required: true
+  version:          # integer, bump on any behavioral change to the scenario
+    required: true
+  contract_version: # semver of the Behavioral Contract this scenario targets
+    required: true
+  title:            # short human title
+    required: true
+  category:         # enum: spec_gate | planning | execution | parking | drift | recovery | verification | brainstorm | adversarial | archive
+    required: true
+  intent:           # enum: execute | plan | brainstorm | review | study | recover
+    required: true
+  tags: []          # optional strings
+
+  setup:            # world state before the first step
+    project_context:   # description of repo/project fixture the mock adapter serves
+    capabilities: []   # adapter capabilities available (subset of the PRD contract); omitted = all
+    prior_state:       # lifecycle state, existing spec/tasks/checkpoints/parked items, if any
+
+  steps:            # ordered list; each step has exactly one of the input kinds
+    - user_message:      # text the user sends
+      tool_event:        # normalized tool event the adapter emits
+      agent_proposal:    # structured proposal the (mock) reasoning provider returns
+      system_event:      # interruption, archive_failure, session_resume, etc.
+      expect:            # OPTIONAL per-step assertions (same shape as top-level expected)
+
+  expected:         # end-of-scenario assertions (all must hold)
+    final_state:         # lifecycle state after the last step (or "unchanged")
+    transitions: []      # ordered list of transition IDs from the contract (e.g. [T1, T2, T3])
+    invariants: []       # I-nn / P-nn IDs that the harness must verify held throughout
+    required_output_sections: []   # Output Contract section names, in order, for the final output
+    must_include: []     # substrings/regexes that must appear in the final user-facing output
+    must_not_include: [] # substrings/regexes that must NOT appear anywhere in user-facing output
+    forbidden_actions: [] # actions the core/adapter must not have performed (e.g. file_write, foreground_switch)
+    archive_expectations: # entries that must exist (by type/actor) and append-only check
+    severity: normal     # normal | critical — critical failures block release regardless of totals
+
+  rubric_focus: []  # dimensions human raters emphasize for this scenario (subset of the 5)
+  notes:            # rationale, edge details, change history
