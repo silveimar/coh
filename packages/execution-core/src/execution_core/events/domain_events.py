@@ -1,6 +1,6 @@
 """Domain events for audit and event stream."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -15,7 +15,7 @@ class DomainEvent(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     event_type: str
     session_id: UUID
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     actor: str
     metadata: dict[str, Any] = Field(default_factory=dict)
 

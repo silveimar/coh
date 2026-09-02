@@ -1,6 +1,6 @@
 """Decision domain model for rationale preservation."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -35,11 +35,11 @@ class Decision(BaseModel):
     def supersede(self, new_decision_id: UUID) -> None:
         """Mark this decision as superseded by a new one."""
         self.lifecycle = DecisionLifecycle.SUPERSEDED
-        self.superseded_at = datetime.utcnow()
+        self.superseded_at = datetime.now(UTC)
         self.superseded_by = new_decision_id
 
     def reopen(self, reason: str) -> None:
         """Reopen a decision for reconsideration."""
         self.lifecycle = DecisionLifecycle.REOPENED
-        self.reopened_at = datetime.utcnow()
+        self.reopened_at = datetime.now(UTC)
         self.reopening_reason = reason

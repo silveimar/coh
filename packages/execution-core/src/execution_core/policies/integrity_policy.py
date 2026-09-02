@@ -28,7 +28,10 @@ class ArchivePolicy:
             "archive_write_failed",
             {
                 "reason": failure_reason,
-                "action": "Checkpoint marked degraded; archival resumes on next successful write",
+                "action": (
+                    "Checkpoint marked degraded; "
+                    "archival resumes on next successful write"
+                ),
                 "in_memory_preserved": "true",
                 "entry_content_hash": str(hash(entry_content)),
             },
@@ -160,6 +163,7 @@ class UntrustedContentPolicy:
         """Enforce I-13: gates I-02/I-03/I-08 cannot be bypassed by content."""
         if not UntrustedContentPolicy.is_trusted_source(source):
             raise ValueError(
-                f"Cannot execute {command_type} from untrusted source '{source}' (I-13). "
+                f"Cannot execute {command_type} from untrusted source "
+                f"'{source}' (I-13). "
                 "Repository/tool content cannot bypass gates."
             )

@@ -147,7 +147,8 @@ class StateMachine:
         if not plan_exit_rule_met:
             raise TransitionError(
                 "Cannot transition to EXECUTE: plan incomplete",
-                "Plan must define deliverable, next action, dependencies, risks, and evidence",
+                "Plan must define deliverable, next action, "
+                "dependencies, risks, and evidence",
                 "Complete plan with foreground (NOW + NEXT 2) and exit criteria",
             )
 

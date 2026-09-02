@@ -1,9 +1,9 @@
 """Shared enums and value types across the domain."""
 
-from enum import Enum
+from enum import StrEnum
 
 
-class EnergyLevel(str, Enum):
+class EnergyLevel(StrEnum):
     """Cognitive/physical demand of a task."""
 
     LOW = "low"
@@ -11,7 +11,7 @@ class EnergyLevel(str, Enum):
     HIGH = "high"
 
 
-class ActivationFriction(str, Enum):
+class ActivationFriction(StrEnum):
     """Difficulty of starting an action, independent of duration or complexity."""
 
     LOW = "low"
@@ -19,14 +19,14 @@ class ActivationFriction(str, Enum):
     HIGH = "high"
 
 
-class Readiness(str, Enum):
+class Readiness(StrEnum):
     """Binary execution gate."""
 
     READY = "ready"
     BLOCKED = "blocked"
 
 
-class Clarity(str, Enum):
+class Clarity(StrEnum):
     """Qualitative spec completeness."""
 
     LOW = "low"
@@ -35,7 +35,7 @@ class Clarity(str, Enum):
     READY = "ready"
 
 
-class CompletionState(str, Enum):
+class CompletionState(StrEnum):
     """Task/deliverable completion progression."""
 
     IMPLEMENTED = "implemented"
@@ -44,7 +44,7 @@ class CompletionState(str, Enum):
     DONE = "done"
 
 
-class LifecycleState(str, Enum):
+class LifecycleState(StrEnum):
     """The 7-state execution lifecycle."""
 
     INSPECT = "INSPECT"
@@ -56,7 +56,7 @@ class LifecycleState(str, Enum):
     COMPLETE = "COMPLETE"
 
 
-class SessionIntent(str, Enum):
+class SessionIntent(StrEnum):
     """Mode of work determining completion contract and drift definition."""
 
     EXECUTE = "execute"
@@ -67,14 +67,14 @@ class SessionIntent(str, Enum):
     RECOVER = "recover"
 
 
-class ArchiveStatus(str, Enum):
+class ArchiveStatus(StrEnum):
     """Checkpoint-level health of archival."""
 
     HEALTHY = "healthy"
     DEGRADED = "degraded"
 
 
-class AssumptionClass(str, Enum):
+class AssumptionClass(StrEnum):
     """Classification of assumptions by risk level."""
 
     SAFE = "safe"
@@ -82,7 +82,7 @@ class AssumptionClass(str, Enum):
     BLOCKING = "blocking"
 
 
-class EvidenceAuthority(str, Enum):
+class EvidenceAuthority(StrEnum):
     """Source-derived authority level for evidence."""
 
     TOOL_VERIFIED = "tool_verified"
@@ -90,7 +90,7 @@ class EvidenceAuthority(str, Enum):
     USER_ACCEPTED = "user_accepted"
 
 
-class EvidenceResult(str, Enum):
+class EvidenceResult(StrEnum):
     """Evidence evaluation outcome."""
 
     PASS = "pass"
@@ -99,7 +99,7 @@ class EvidenceResult(str, Enum):
     ACCEPTED = "accepted"
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     """Task lifecycle status."""
 
     PLANNED = "planned"
@@ -110,7 +110,7 @@ class TaskStatus(str, Enum):
     ABANDONED = "abandoned"
 
 
-class ForegroundPosition(str, Enum):
+class ForegroundPosition(StrEnum):
     """Task position in the execution foreground."""
 
     NOW = "NOW"
@@ -119,7 +119,7 @@ class ForegroundPosition(str, Enum):
     BACKGROUND = "BACKGROUND"
 
 
-class ParkingItemStatus(str, Enum):
+class ParkingItemStatus(StrEnum):
     """Parking item lifecycle status."""
 
     PARKED = "parked"
@@ -127,7 +127,7 @@ class ParkingItemStatus(str, Enum):
     DISMISSED = "dismissed"
 
 
-class DecisionLifecycle(str, Enum):
+class DecisionLifecycle(StrEnum):
     """Decision record lifecycle."""
 
     ACTIVE = "active"
@@ -135,7 +135,7 @@ class DecisionLifecycle(str, Enum):
     REOPENED = "reopened"
 
 
-class RelevanceLevel(str, Enum):
+class RelevanceLevel(StrEnum):
     """Parking item relevance assessment."""
 
     LOW = "low"

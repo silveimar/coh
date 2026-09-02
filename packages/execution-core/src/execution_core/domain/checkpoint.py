@@ -1,6 +1,6 @@
 """Checkpoint and recovery domain models."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -29,7 +29,7 @@ class Checkpoint(BaseModel):
     archive_status: ArchiveStatus = ArchiveStatus.HEALTHY
     archive_references: list[ArchiveReference] = Field(default_factory=list)
     material_context: dict[str, str] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     checkpoint_reason: str = "manual"
 
     def mark_degraded(self) -> None:

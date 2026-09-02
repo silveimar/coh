@@ -1,6 +1,6 @@
 """Specification domain model (WHAT/WHY/DELIVERABLE/DONE WHEN)."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -119,15 +119,15 @@ class Specification(BaseModel):
         """Recompute clarity and readiness after spec changes."""
         self.clarity = self.compute_clarity()
         self.readiness = self.compute_readiness()
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(UTC)
 
     def create_revision(self) -> "Specification":
         """Create a new revision with incremented revision number."""
         new_spec = self.model_copy(deep=True)
         new_spec.id = uuid4()
         new_spec.revision = self.revision + 1
-        new_spec.created_at = datetime.utcnow()
-        new_spec.updated_at = datetime.utcnow()
+        new_spec.created_at = datetime.now(UTC)
+        new_spec.updated_at = datetime.now(UTC)
         new_spec.confirmed_at = None
         new_spec.update_computed_fields()
         return new_spec

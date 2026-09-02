@@ -80,8 +80,8 @@ class CompletionPolicy:
 
         if state in [CompletionState.IMPLEMENTED, CompletionState.TESTED] and missing:
             raise CompletionViolation(
-                f"Cannot claim VERIFIED or DONE: {len(missing)} criteria lack evidence. "
-                f"Honest ceiling: {state.value}",
+                f"Cannot claim VERIFIED or DONE: {len(missing)} criteria "
+                f"lack evidence. Honest ceiling: {state.value}",
                 missing,
             )
 
