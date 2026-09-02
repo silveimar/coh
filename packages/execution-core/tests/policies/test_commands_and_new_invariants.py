@@ -1,6 +1,7 @@
 """Tests for command idempotency, concurrency control, and I-09/I-11/I-14."""
 
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 
@@ -18,10 +19,7 @@ from execution_core.domain.enums import (
 from execution_core.domain.session import ExecutionSession
 from execution_core.policies.integrity_policy import UntrustedContentPolicy
 from execution_core.policies.parking_policy import DriftPolicy
-from execution_core.state_machine.lifecycle import (
-    CapabilityNotImplemented,
-    StateMachine,
-)
+from execution_core.state_machine.lifecycle import StateMachine
 
 
 class TestCommandConcurrency:
@@ -122,11 +120,11 @@ class TestCommandConcurrency:
             )
 
 
-class TestInvariantI09DecisionSuperseding:
-    """Test I-09: decision superseding and reopening."""
+class TestDecisionSuperseding:
+    """Test decision superseding and reopening (not I-09)."""
 
     def test_superseded_decision_keeps_history(self) -> None:
-        """Test that superseding a decision preserves full history (I-09)."""
+        """Test that superseding a decision preserves full history."""
         decision = Decision(
             id=uuid.uuid4(),
             question="Which database to use?",
@@ -154,7 +152,7 @@ class TestInvariantI09DecisionSuperseding:
         assert decision.id == original_id  # ID unchanged
 
     def test_decision_can_be_reopened(self) -> None:
-        """Test that active decision can be reopened for reconsideration (I-09)."""
+        """Test that active decision can be reopened for reconsideration."""
         decision = Decision(
             id=uuid.uuid4(),
             question="How to implement caching?",
@@ -172,6 +170,54 @@ class TestInvariantI09DecisionSuperseding:
         assert decision.lifecycle == DecisionLifecycle.REOPENED
         assert decision.reopened_at is not None
         assert decision.reopening_reason == "New requirements need persistence"
+
+
+class TestInvariantI09CheckpointProvenance:
+    """Test I-09: checkpoint provenance (restart_action + archive refs)."""
+
+    def test_checkpoint_contains_restart_action(self) -> None:
+        """Test that checkpoint preserves restart_action (I-09)."""
+        from execution_core.domain.checkpoint import Checkpoint
+        from execution_core.domain.enums import ArchiveStatus
+
+        checkpoint = Checkpoint(
+            session_id=uuid.uuid4(),
+            lifecycle_state=LifecycleState.EXECUTE,
+            restart_action="Resume implementation from line 42 in api.py",
+            archive_status=ArchiveStatus.HEALTHY,
+        )
+
+        assert (
+            checkpoint.restart_action
+            == "Resume implementation from line 42 in api.py"
+        )
+        assert checkpoint.archive_status == ArchiveStatus.HEALTHY
+
+    def test_checkpoint_contains_archive_refs(self) -> None:
+        """Test that checkpoint preserves archive references (I-09)."""
+        from execution_core.domain.checkpoint import ArchiveReference, Checkpoint
+        from execution_core.domain.enums import ArchiveStatus
+
+        checkpoint = Checkpoint(
+            session_id=uuid.uuid4(),
+            lifecycle_state=LifecycleState.PLAN,
+            restart_action="Continue planning",
+            archive_status=ArchiveStatus.HEALTHY,
+            archive_references=[
+                ArchiveReference(
+                    path=".coh/archive/session_123/inspect.md",
+                    timestamp=datetime.now(UTC),
+                    anchor="inspection-findings",
+                )
+            ],
+        )
+
+        assert len(checkpoint.archive_references) == 1
+        assert (
+            checkpoint.archive_references[0].path
+            == ".coh/archive/session_123/inspect.md"
+        )
+        assert checkpoint.archive_references[0].anchor == "inspection-findings"
 
 
 class TestInvariantI11DriftDetection:
@@ -225,6 +271,33 @@ class TestInvariantI11DriftDetection:
 class TestInvariantI13UntrustedContent:
     """Test I-13: untrusted content cannot mutate state or bypass gates."""
 
+    def test_untrusted_command_source_rejected(self) -> None:
+        """Test that commands from untrusted sources are rejected (I-13)."""
+        machine = StateMachine()
+        session = ExecutionSession(
+            project_id="test_project",
+            intent=SessionIntent.EXECUTE,
+            lifecycle_state=LifecycleState.INSPECT,
+        )
+
+        # Command from repository source (untrusted)
+        cmd = TransitionToSpecifyCommand(
+            idempotency_key="cmd_repo_001",
+            expected_version=1,
+            session_id=session.id,
+            findings_archived=True,
+            source="repository",
+        )
+
+        # Should fail due to untrusted source
+        with pytest.raises(Exception) as exc_info:
+            machine.transition_to_specify(session, findings_archived=True, command=cmd)
+
+        assert "untrusted source" in str(exc_info.value).lower()
+        assert "repository" in str(exc_info.value)
+        # State should not have changed
+        assert session.lifecycle_state == LifecycleState.INSPECT
+
     def test_untrusted_source_cannot_mutate(self) -> None:
         """Test that untrusted sources cannot perform mutations (adv-001)."""
         with pytest.raises(ValueError) as exc_info:
@@ -276,38 +349,37 @@ class TestInvariantI13UntrustedContent:
 
 
 class TestInvariantI14CapabilityHonesty:
-    """Test I-14: honest NOT_IMPLEMENTED with focused request."""
+    """Test I-14: honest NOT_IMPLEMENTED with focused request from product code."""
 
-    def test_unimplemented_capability_raises_with_request(self) -> None:
-        """Test that unavailable capability raises with focused request."""
-        with pytest.raises(CapabilityNotImplemented) as exc_info:
-            raise CapabilityNotImplemented(
-                capability="natural_language_parsing",
-                focused_request=(
-                    "To use natural language input, install the NLP adapter. "
-                    "See docs/adapters/nlp.md for setup instructions."
-                ),
-            )
+    def test_unimplemented_capability_raised_from_product_code(self) -> None:
+        """Test that product code raises CapabilityNotImplemented (I-14)."""
+        # Test the actual state machine raising for unimplemented capability
+        machine = StateMachine()
+        session = ExecutionSession(
+            project_id="test",
+            intent=SessionIntent.EXECUTE,
+            lifecycle_state=LifecycleState.VERIFY,
+        )
 
-        assert exc_info.value.capability == "natural_language_parsing"
-        assert "install the NLP adapter" in exc_info.value.focused_request
-        assert "NOT_IMPLEMENTED" not in str(exc_info.value)  # No generic placeholder
+        # Try to recover without providing checkpoint (not implemented yet)
+        from execution_core.domain.commands import RecoverCommand
 
-    def test_unimplemented_capability_does_not_pretend(self) -> None:
-        """Test that unimplemented capability doesn't return fake success."""
+        cmd = RecoverCommand(
+            idempotency_key="recover_001",
+            expected_version=1,
+            session_id=session.id,
+            checkpoint_id=uuid.uuid4(),
+        )
 
-        def hypothetical_nlp_parse(text: str) -> dict:
-            """Simulates a capability that should not be implemented yet."""
-            raise CapabilityNotImplemented(
-                capability="nlp_parse",
-                focused_request=(
-                    "Install execution-nlp package: "
-                    "uv pip install execution-nlp. "
-                    "See docs/nlp-adapter.md for integration."
-                ),
-            )
+        # Should raise with focused request about checkpoint loading
+        with pytest.raises(Exception) as exc_info:
+            machine.recover(session, None, cmd)
 
-        with pytest.raises(CapabilityNotImplemented) as exc_info:
-            hypothetical_nlp_parse("parse this natural language spec")
-
-        assert "Install execution-nlp" in str(exc_info.value)
+        # Must have focused request, not generic NOT_IMPLEMENTED
+        error_msg = str(exc_info.value)
+        assert "checkpoint" in error_msg.lower()
+        # Should suggest how to address the gap
+        assert any(
+            word in error_msg.lower()
+            for word in ["provide", "implement", "required"]
+        )
