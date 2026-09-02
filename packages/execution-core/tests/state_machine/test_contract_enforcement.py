@@ -18,7 +18,6 @@ from execution_core.domain.enums import (
     ArchiveStatus,
     EnergyLevel,
     LifecycleState,
-    Readiness,
     SessionIntent,
 )
 from execution_core.domain.session import ExecutionSession
