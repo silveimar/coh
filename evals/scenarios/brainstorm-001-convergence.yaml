@@ -1,0 +1,46 @@
+id: brainstorm-001-convergence
+version: 1
+contract_version: "1.0.0"
+title: Brainstorm converges through explicit criteria to one recommendation and a next action
+category: brainstorm
+intent: brainstorm
+tags: [convergence-gate, intents, divergence]
+
+setup:
+  project_context: >
+    Brainstorm session fixture: "how should COH-style state be visualized later?"
+    Five candidate ideas have accumulated across prior steps; novelty has declined
+    (last two candidates are variants of earlier ones).
+  prior_state:
+    lifecycle_state: PLAN
+    intent: brainstorm
+    candidates: [timeline, quest_map, focus_tunnel, kanban_variant, timeline_variant]
+
+steps:
+  - user_message: "any more ideas?"
+    expect:
+      must_include: ["converge"]     # system signals declining novelty → convergence gate
+
+expected:
+  final_state: PLAN
+  transitions: []
+  invariants: [I-11, I-07, I-04]
+  required_output_sections: [DETOUR_RECOMMENDATION]   # convergence output: criteria → recommendation → alternatives → next action
+  must_include:
+    - "criteria"
+    - "recommend"
+    - "next action"
+  must_not_include:
+    - "endless"               # no open-ended expansion after novelty declines
+  forbidden_actions: [unbounded_divergence_continuation]
+  archive_expectations:
+    entries: [{actor: agent, type: agent_output}]
+    append_only: true
+  severity: normal
+
+rubric_focus: [usefulness, actionability]
+notes: >
+  Brainstorm completion contract (§3 of the contract): divergence is legitimate
+  until useful novelty declines, then the convergence gate evaluates candidates
+  against stated criteria, recommends one, retains alternatives, and produces a
+  next action where applicable. Alternatives are preserved, not deleted.

@@ -1,0 +1,47 @@
+id: arch-001-write-failure
+version: 1
+contract_version: "1.0.0"
+title: Archive write failure degrades visibly and never blocks or loses work
+category: archive
+intent: execute
+tags: [archive, degrade-and-continue, d6]
+
+setup:
+  project_context: Mid-EXECUTE fixture; archive directory becomes unwritable (permissions).
+  prior_state:
+    lifecycle_state: EXECUTE
+    now_task: {id: task_001, status: in_progress}
+    archive_status: healthy
+
+steps:
+  - system_event: {kind: archive_failure, os_error: EACCES}
+  - user_message: "status update: repro harness written, running it next"
+    expect:
+      forbidden_actions: [workflow_block, message_loss, task_failure_due_to_archive]
+  - system_event: {kind: archive_restored}
+  - user_message: "ok continuing"
+
+expected:
+  final_state: EXECUTE
+  transitions: []
+  invariants: [I-12, I-05, I-04]
+  required_output_sections: [GOAL, NOW, NEXT_1, NEXT_2, PARKED_COUNT]
+  must_include:
+    - "record was not saved"  # non-blocking warning with resolved path context
+  must_not_include:
+    - "cannot continue"
+    - "task failed"
+  forbidden_actions: [workflow_block, message_loss, retroactive_entry_rewrite]
+  archive_expectations:
+    entries: [{actor: agent, type: archive_write_failed_event}]
+    append_only: true
+    degraded_checkpoint: true    # checkpoint archive_status = degraded while failing
+    resume_after_restore: true   # next successful write resumes normal archival
+  severity: normal
+
+rubric_focus: [safety, concision]
+notes: >
+  Decision D6 encoded: degrade-and-continue. Failure returns archive_write_failed,
+  emits the product event, marks checkpoint archive_status degraded (visible in
+  recovery), warns without blocking, preserves the in-memory interaction, and
+  resumes archival on the next successful write. No staging buffer, no fallback file.
