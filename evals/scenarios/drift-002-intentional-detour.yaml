@@ -1,0 +1,44 @@
+id: drift-002-intentional-detour
+version: 1
+contract_version: "1.0.0"
+title: User-chosen tangent becomes a recorded detour with suppressed warnings and a return point
+category: drift
+intent: execute
+tags: [detour, warning-suppression, return-point]
+
+setup:
+  project_context: Same fixture as drift-001, immediately after the detour recommendation.
+  prior_state:
+    lifecycle_state: EXECUTE
+    now_task: {id: task_002, status: in_progress}
+    pending_recommendation: {options: [investigate, continue, park], recommended: investigate}
+
+steps:
+  - user_message: "let's chase the cache thing"
+  - tool_event:
+      tool: inspect_repository
+      status: succeeded
+      finding: "cache layer uses a global mutable TTL map"
+    expect:
+      must_not_include: ["drift detected", "off track"]   # no repeat warnings during accepted detour
+
+expected:
+  final_state: EXECUTE
+  transitions: []
+  invariants: [I-11, I-09, I-07, I-05]
+  required_output_sections: [GOAL, NOW, NEXT_1, NEXT_2, PARKED_COUNT]
+  must_include:
+    - "detour"                # detour state visible, with return point
+  must_not_include:
+    - "warning"               # suppressed for same evidence until detour ends
+  forbidden_actions: [original_task_record_loss, repeat_drift_warning_same_evidence]
+  archive_expectations:
+    entries: [{actor: agent, type: checkpoint}]
+    append_only: true
+  severity: normal
+
+rubric_focus: [usefulness, safety]
+notes: >
+  Accepted detour: recorded as intentional (not drift), original task checkpointed
+  with an exact return point, repeated warnings suppressed for the same evidence
+  (I-11). Detour work itself gets normal foreground treatment.
