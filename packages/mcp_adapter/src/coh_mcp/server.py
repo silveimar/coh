@@ -229,6 +229,109 @@ def create_server(project_root: Path | None = None) -> Server:
                     "properties": {},
                 },
             ),
+            Tool(
+                name="plan_work",
+                description=(
+                    "Create executable plan from task list "
+                    "(session must be PLAN; persists tasks, seeds I-01 foreground)"
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "session_id": {"type": "string"},
+                        "tasks": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "action_literal": {"type": "string"},
+                                    "done_when_condition": {"type": "string"},
+                                    "estimated_minutes": {"type": "integer"},
+                                    "energy": {
+                                        "type": "string",
+                                        "enum": ["low", "medium", "high"],
+                                    },
+                                    "activation_friction": {
+                                        "type": "string",
+                                        "enum": ["low", "medium", "high"],
+                                    },
+                                    "dependencies": {
+                                        "type": "array",
+                                        "items": {"type": "object"},
+                                    },
+                                },
+                                "required": [
+                                    "action_literal",
+                                    "done_when_condition",
+                                    "estimated_minutes",
+                                    "energy",
+                                    "activation_friction",
+                                ],
+                            },
+                        },
+                    },
+                    "required": ["session_id", "tasks"],
+                },
+            ),
+            Tool(
+                name="execute_task",
+                description=(
+                    "Execute planned work (T6: PLAN → EXECUTE; "
+                    "validates I-01 NOW metadata)"
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "session_id": {"type": "string"},
+                    },
+                    "required": ["session_id"],
+                },
+            ),
+            Tool(
+                name="verify_deliverable",
+                description=(
+                    "Verify deliverable with evidence "
+                    "(T7 → T9 complete or T8 return to execute)"
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "session_id": {"type": "string"},
+                        "evidence_list": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "criterion_text": {"type": "string"},
+                                    "evidence_type": {"type": "string"},
+                                    "authority": {
+                                        "type": "string",
+                                        "enum": [
+                                            "tool_verified",
+                                            "user_accepted",
+                                            "user_reported",
+                                            "agent_observed",
+                                        ],
+                                    },
+                                    "result": {
+                                        "type": "string",
+                                        "enum": [
+                                            "pass",
+                                            "fail",
+                                            "accepted",
+                                            "inconclusive",
+                                        ],
+                                    },
+                                    "summary": {"type": "string"},
+                                    "source": {"type": "string"},
+                                },
+                                "required": ["criterion_text", "summary"],
+                            },
+                        },
+                    },
+                    "required": ["session_id", "evidence_list"],
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -261,6 +364,12 @@ def create_server(project_root: Path | None = None) -> Server:
                 return await handlers.recover_session(**arguments)
             elif name == "get_archive_status":
                 return await handlers.get_archive_status()
+            elif name == "plan_work":
+                return await handlers.plan_work(**arguments)
+            elif name == "execute_task":
+                return await handlers.execute_task(**arguments)
+            elif name == "verify_deliverable":
+                return await handlers.verify_deliverable(**arguments)
             else:
                 raise ValueError(f"Unknown tool: {name}")
 
