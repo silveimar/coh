@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 
 from coh_archive import ArchiveConfig, ArchiveService
 from execution_core.domain.checkpoint import Checkpoint
+from execution_core.domain.commands import Command
 from execution_core.domain.enums import (
     ArchiveStatus,
     Clarity,
@@ -16,6 +17,7 @@ from execution_core.domain.enums import (
 )
 from execution_core.domain.session import ExecutionSession
 from execution_core.domain.specification import DoneWhenCriterion, Specification
+from execution_core.state_machine.lifecycle import StateMachine
 
 from .archive_wiring import ArchiveCheckpointWiring
 from .errors import CapabilityNotImplementedError
@@ -35,6 +37,7 @@ class COHHandlers:
         self.project_root = project_root
         self.sessions: dict[UUID, ExecutionSession] = {}
         self.checkpoints: dict[UUID, Checkpoint] = {}
+        self.state_machine = StateMachine()
 
         archive_config = ArchiveConfig(enabled=True, directory=".coh/archive")
         archive_service = ArchiveService(project_root, archive_config)
@@ -141,12 +144,31 @@ class COHHandlers:
             readiness=Readiness.READY,
         )
 
-        session.lifecycle_state = LifecycleState.CONFIRM
-        session.updated_at = datetime.now(UTC)
+        # Use state machine for INSPECT → SPECIFY → CONFIRM (T2 + T3)
+        command = Command(
+            idempotency_key=f"specify-{session_uuid}-{datetime.now(UTC).isoformat()}",
+            expected_version=session.version,
+            source="user",
+        )
+
+        # T2: INSPECT → SPECIFY (findings_archived via archive_wiring)
+        session = self.state_machine.transition_to_specify(
+            session, findings_archived=True, command=command
+        )
+        self.sessions[session_uuid] = session
+
+        # T3: SPECIFY → CONFIRM
+        command = Command(
+            idempotency_key=f"confirm-{session_uuid}-{datetime.now(UTC).isoformat()}",
+            expected_version=session.version,
+            source="user",
+        )
+        session = self.state_machine.transition_to_confirm(session, spec, command)
+        self.sessions[session_uuid] = session
 
         checkpoint = self.checkpoints.get(session_uuid)
         if checkpoint:
-            checkpoint.lifecycle_state = LifecycleState.CONFIRM
+            checkpoint.lifecycle_state = session.lifecycle_state
             checkpoint.spec_id = spec.id
             checkpoint.spec_revision = spec.revision
 
@@ -188,12 +210,23 @@ class COHHandlers:
             return [{"type": "text", "text": f"Session not found: {session_id}"}]
 
         if confirmed:
-            session.lifecycle_state = LifecycleState.PLAN
-            session.updated_at = datetime.now(UTC)
+            # T4: CONFIRM → PLAN (I-02 readiness + I-08 confirmation)
+            command = Command(
+                idempotency_key=f"plan-{session_uuid}-{datetime.now(UTC).isoformat()}",
+                expected_version=session.version,
+                source="user",
+            )
+            session = self.state_machine.transition_to_plan(
+                session,
+                user_confirmed=True,
+                command=command,
+                change_scope="small",  # MCP adapters start with small scope
+            )
+            self.sessions[session_uuid] = session
 
             checkpoint = self.checkpoints.get(session_uuid)
             if checkpoint:
-                checkpoint.lifecycle_state = LifecycleState.PLAN
+                checkpoint.lifecycle_state = session.lifecycle_state
 
             return [
                 {
@@ -205,6 +238,19 @@ class COHHandlers:
                 }
             ]
         else:
+            # T5: CONFIRM → SPECIFY (user correction)
+            if corrections and session.current_spec:
+                command = Command(
+                    idempotency_key=f"correct-{session_uuid}-{datetime.now(UTC).isoformat()}",
+                    expected_version=session.version,
+                    source="user",
+                )
+                corrected_spec = session.current_spec.model_copy(update=corrections)
+                session = self.state_machine.correct_spec(
+                    session, corrected_spec, command
+                )
+                self.sessions[session_uuid] = session
+
             return [
                 {
                     "type": "text",

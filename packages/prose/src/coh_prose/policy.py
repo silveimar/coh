@@ -155,7 +155,8 @@ class ProsePolicy:
                 return ProseValidationResult(
                     valid=False,
                     violations=[
-                        f"P-03 violation: Prose has {line_count} lines (>{self.config.recap_threshold_lines}) but no recap"
+                        f"P-03 violation: Prose has {line_count} lines "
+                        f"(>{self.config.recap_threshold_lines}) but no recap"
                     ],
                 )
 
@@ -181,7 +182,8 @@ class ProsePolicy:
             for marker in markers:
                 if marker in original_lower and marker not in compressed_lower:
                     violations.append(
-                        f'P-05 violation: Protected field "{field.value}" marker "{marker}" dropped in compression'
+                        f'P-05 violation: Protected field "{field.value}" '
+                        f'marker "{marker}" dropped in compression'
                     )
 
         if violations:
@@ -216,7 +218,8 @@ class ProsePolicy:
         Args:
             prose: The prose to validate
             has_evidence: Whether evidence precedes conclusions (P-01)
-            context: Context indicator (e.g., "recovery", "foreground") for P-06 exemption
+            context: Context indicator (e.g., "recovery", "foreground")
+                for P-06 exemption
 
         Returns:
             ProseValidationResult with violations

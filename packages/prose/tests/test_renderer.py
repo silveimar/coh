@@ -1,5 +1,7 @@
 """Tests for prose renderer."""
 
+import pytest
+
 from coh_prose.renderer import (
     DetourRecommendation,
     ExecutionForeground,
@@ -185,8 +187,6 @@ class TestRecapAddition:
         prose = "\n".join([f"Line {i}" for i in range(15)])
         long_recap = "\n".join([f"Recap line {i}" for i in range(5)])
 
-        try:
+        with pytest.raises(ValueError) as exc_info:
             renderer.add_recap_if_needed(prose, long_recap)
-            assert False, "Should have raised ValueError"
-        except ValueError as e:
-            assert "exceeds" in str(e)
+        assert "exceeds" in str(exc_info.value)

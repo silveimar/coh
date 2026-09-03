@@ -71,8 +71,7 @@ def create_server(project_root: Path | None = None) -> Server:
             Tool(
                 name="specify_work",
                 description=(
-                    "Derive and propose specification "
-                    "(WHAT/WHY/DELIVERABLE/DONE WHEN)"
+                    "Derive and propose specification (WHAT/WHY/DELIVERABLE/DONE WHEN)"
                 ),
                 inputSchema={
                     "type": "object",
@@ -125,8 +124,7 @@ def create_server(project_root: Path | None = None) -> Server:
             Tool(
                 name="recover_session",
                 description=(
-                    "Recover from latest checkpoint "
-                    "(I-09: navigate to archive records)"
+                    "Recover from latest checkpoint (I-09: navigate to archive records)"
                 ),
                 inputSchema={
                     "type": "object",
@@ -139,8 +137,7 @@ def create_server(project_root: Path | None = None) -> Server:
             Tool(
                 name="get_archive_status",
                 description=(
-                    "Get archive integration health "
-                    "(I-12: degradation visibility)"
+                    "Get archive integration health (I-12: degradation visibility)"
                 ),
                 inputSchema={
                     "type": "object",
@@ -174,7 +171,9 @@ def create_server(project_root: Path | None = None) -> Server:
             return [
                 {
                     "type": "text",
-                    "text": f"NOT_IMPLEMENTED: {e.capability}\nNeed: {e.context_needed}",
+                    "text": (
+                        f"NOT_IMPLEMENTED: {e.capability}\nNeed: {e.context_needed}"
+                    ),
                 }
             ]
 

@@ -47,7 +47,7 @@ async def test_intent_inference(handlers: COHHandlers):
 @pytest.mark.asyncio
 async def test_inspect_repository_raises_not_implemented(handlers: COHHandlers):
     """Test I-14: inspect_repository returns NOT_IMPLEMENTED."""
-    result = await handlers.create_session(
+    await handlers.create_session(
         project_id="test-project",
         user_input="Fix bug",
     )
