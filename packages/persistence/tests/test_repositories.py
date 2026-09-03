@@ -3,8 +3,6 @@
 from uuid import uuid4
 
 import pytest
-from persistence.infrastructure.repositories import OptimisticLockError
-from persistence.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 
 from execution_core.domain.checkpoint import Checkpoint
 from execution_core.domain.decision import Alternative, Decision
@@ -26,6 +24,8 @@ from execution_core.domain.parking_item import ParkingItem
 from execution_core.domain.session import ExecutionSession
 from execution_core.domain.specification import DoneWhenCriterion, Specification
 from execution_core.domain.task import Task
+from persistence.infrastructure.repositories import OptimisticLockError
+from persistence.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 
 
 def test_session_crud(session_factory) -> None:
