@@ -65,32 +65,6 @@ async def test_scenario(scenario_path: Path, temp_project_root, eval_results_dir
     if scenario_id == "prose-002-recap-threshold":
         pytest.xfail("P-04: Recap rendering after threshold not yet implemented")
 
-    # I-03 gap: verify-001 - empty-evidence verify renders "execute" not "implemented"
-    if scenario_id == "verify-001-unsupported-claim":
-        pytest.xfail(
-            "Product gap (I-03): empty-evidence verify does not render implemented"
-        )
-
-    # I-03 gap: verify-002 - verification success prose lacks "3/3" count
-    if scenario_id == "verify-002-evidence-done":
-        pytest.xfail("Product gap (I-03): verification success prose lacks 3/3")
-
-    # I-02 gap: spec-003 - blocked confirm_spec payload lacks "recommended" default
-    if scenario_id == "spec-003-blocking-unknown":
-        pytest.xfail(
-            "Product gap (I-02): blocked confirm_spec payload lacks recommended default"
-        )
-
-    # P-05 gap: prose-004 - protected field guard not wired
-    if scenario_id == "prose-004-protected-fields":
-        pytest.xfail("Product gap (P-05): protected-field guard not wired in handlers")
-
-    # I-12 gap: arch-001 - archive write failure does not emit warning
-    if scenario_id == "arch-001-write-failure":
-        pytest.xfail(
-            "Product gap (I-12): archive write failure does not emit 'record was not saved'"
-        )
-
     # Create mock adapter with scenario capabilities
     with open(scenario_path) as f:
         scenario = yaml.safe_load(f)
@@ -108,13 +82,24 @@ async def test_scenario(scenario_path: Path, temp_project_root, eval_results_dir
     with open(result_file, "w") as f:
         json.dump(results, f, indent=2)
 
-    # Check for product gaps in invariant failures
-    for failure in results.get("failures", []):
-        if "Product gap" in failure:
-            # Extract the gap message and xfail
-            pytest.xfail(failure)
+    # Check for product gap xfails first (before critical failure check)
+    if not results["passed"]:
+        product_gap_failures = [
+            f
+            for f in results.get("failures", [])
+            if f.startswith("Product gap xfail:")
+        ]
+        other_failures = [
+            f
+            for f in results.get("failures", [])
+            if not f.startswith("Product gap xfail:")
+        ]
 
-    # Critical failures must block
+        if product_gap_failures and not other_failures:
+            # Only product gap xfails - xfail the test (even if critical)
+            pytest.xfail("\n".join(product_gap_failures))
+
+    # Critical failures must block (after checking for product gaps)
     if results.get("critical_failure"):
         pytest.fail(
             f"CRITICAL FAILURE in {scenario_id}:\n"
@@ -124,7 +109,8 @@ async def test_scenario(scenario_path: Path, temp_project_root, eval_results_dir
     # Assert overall pass
     if not results["passed"]:
         pytest.fail(
-            f"Scenario {scenario_id} failed:\n" + "\n".join(results.get("failures", []))
+            f"Scenario {scenario_id} failed:\n"
+            + "\n".join(results.get("failures", []))
         )
 
 
