@@ -1,6 +1,5 @@
 """Tests for persistence integration and COH gate blockers 1-4."""
 
-import tempfile
 from pathlib import Path
 from uuid import uuid4
 
@@ -27,7 +26,7 @@ async def test_recover_after_restart_restores_spec_from_snapshot(
 ):
     """
     Blocker 2: Crash/restart test.
-    
+
     Persist session+spec+checkpoint, new engine/process,
     recover via T11 restores spec from spec_snapshot.
     """
@@ -66,21 +65,17 @@ async def test_create_checkpoint_preserves_archive_references(
 ):
     """
     Blocker 3: create_checkpoint must ADD, not replace.
-    
+
     Verify archive_references from prior checkpoint are preserved (I-09).
     """
     result = await handlers.create_session("test-project", "Task")
     session_id = result[0]["text"].split("\n")[0].split(": ")[1]
 
     # Create first checkpoint (will have archive refs from create_session)
-    await handlers.create_checkpoint(
-        session_id, restart_action="First checkpoint"
-    )
+    await handlers.create_checkpoint(session_id, restart_action="First checkpoint")
 
     # Create second checkpoint - should preserve refs from first
-    await handlers.create_checkpoint(
-        session_id, restart_action="Second checkpoint"
-    )
+    await handlers.create_checkpoint(session_id, restart_action="Second checkpoint")
 
     # Verify via persistence: should have 2 checkpoints (ADD, not replace)
     from persistence.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
@@ -89,7 +84,7 @@ async def test_create_checkpoint_preserves_archive_references(
         checkpoints = uow.checkpoints.list_by_session(uuid4(session_id))
         # Should have 3: initial from create_session, then 2 explicit
         assert len(checkpoints) >= 2
-        
+
         # Latest checkpoint should have archive_references copied from prior
         latest = uow.checkpoints.get_latest_for_session(uuid4(session_id))
         assert latest is not None
@@ -100,7 +95,7 @@ async def test_create_checkpoint_preserves_archive_references(
 async def test_specify_work_blocked_when_archive_fails(handlers: COHHandlers):
     """
     Blocker 4: T2 must fail closed when findings_archived=False.
-    
+
     If archive write fails, mark_degraded but T2 must be passed False.
     """
     # This test requires mocking archive failure, which would need
