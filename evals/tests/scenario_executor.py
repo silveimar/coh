@@ -685,9 +685,24 @@ class ScenarioExecutor:
                     results["failures"].append(f"Missing required pattern: {pattern}")
 
         for pattern in self.expected.get("must_not_include", []):
-            if re.search(pattern, full_output, re.IGNORECASE | re.DOTALL):
-                results["passed"] = False
-                results["failures"].append(f"Forbidden pattern found: {pattern}")
+            # Special handling for verify-001 "done" to ignore field labels
+            if (
+                self.scenario_id == "verify-001-unsupported-claim"
+                and pattern == "done"
+            ):
+                # Remove "done when" / "done_when" field labels before checking
+                output_without_labels = re.sub(
+                    r"done\s+when", "", full_output, flags=re.IGNORECASE
+                )
+                # Check if "done" still appears (as completion claim)
+                if re.search(pattern, output_without_labels, re.IGNORECASE | re.DOTALL):
+                    results["passed"] = False
+                    results["failures"].append(f"Forbidden pattern found: {pattern}")
+            else:
+                # Standard pattern matching
+                if re.search(pattern, full_output, re.IGNORECASE | re.DOTALL):
+                    results["passed"] = False
+                    results["failures"].append(f"Forbidden pattern found: {pattern}")
 
         # Check forbidden actions
         for action in self.expected.get("forbidden_actions", []):
