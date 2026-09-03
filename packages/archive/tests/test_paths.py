@@ -35,9 +35,7 @@ def test_resolve_custom_relative_directory(project_root: Path):
 def test_reject_external_path_without_flag(project_root: Path):
     """External absolute path rejected when allow_external_path is false."""
     external_path = Path("/tmp/external-archive")
-    config = ArchiveConfig(
-        directory=str(external_path), allow_external_path=False
-    )
+    config = ArchiveConfig(directory=str(external_path), allow_external_path=False)
 
     with pytest.raises(PathResolutionError, match="outside project root"):
         resolve_archive_directory(project_root, config)
@@ -46,9 +44,7 @@ def test_reject_external_path_without_flag(project_root: Path):
 def test_allow_external_path_with_flag(project_root: Path):
     """External absolute path allowed when allow_external_path is true."""
     external_path = Path("/tmp/external-archive")
-    config = ArchiveConfig(
-        directory=str(external_path), allow_external_path=True
-    )
+    config = ArchiveConfig(directory=str(external_path), allow_external_path=True)
 
     resolved = resolve_archive_directory(project_root, config)
     assert resolved == external_path
