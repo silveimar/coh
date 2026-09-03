@@ -27,7 +27,7 @@ select = [
 ignore = []
 
 [tool.ruff.lint.isort]
-known-first-party = ["execution_core"]
+known-first-party = ["execution_core", "coh_archive", "persistence"]
 
 [tool.pyright]
 pythonVersion = "3.12"
@@ -43,6 +43,10 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "--strict-markers --cov --cov-report=term-missing --cov-report=html"
+markers = [
+    "asyncio: mark test as async",
+]
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage.run]
 source = ["packages/*/src"]
