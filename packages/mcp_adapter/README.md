@@ -98,13 +98,13 @@ Tests cover:
 
 1. **Stdio only**: No HTTP/SSE transport yet (deferred to FastAPI app integration)
 2. **Minimal handlers**: Only session/spec/checkpoint tools; full CRUD deferred
-3. **No persistence layer wiring**: Uses in-memory stores; SQLAlchemy integration next
+3. **Persistence wired**: SqlAlchemyUnitOfWork connected to `.coh/coh.db`; additional repositories next
 4. **Inspection stub**: `inspect_repository` raises `NOT_IMPLEMENTED` (I-14 test only)
 5. **Simplified prose validation**: P-02/P-05 use keyword matching, not full NLP
 
 ## Next Actions
 
-1. Wire persistence layer (SQLAlchemy repositories) to replace in-memory stores
+1. ✅ ~~Wire persistence layer~~ — Complete: SqlAlchemyUnitOfWork connects to `.coh/coh.db`
 2. Implement remaining MCP tools: `plan_work`, `execute_task`, `verify_deliverable`
 3. Add FastAPI HTTP/SSE transport for web clients
 4. Implement `inspect_repository` capability (filesystem + git inspection)
@@ -130,6 +130,6 @@ Tests cover:
 
 - `mcp` — Official Python MCP SDK
 - `execution-core` — Pure domain logic (7-state lifecycle, policies)
-- `persistence` — SQLAlchemy 2 repositories (not yet wired to adapter)
+- `persistence` — SQLAlchemy 2 repositories with SqlAlchemyUnitOfWork → `.coh/coh.db`
 - `coh-archive` — Append-only Markdown archive with degrade-and-continue
 - `prose` — P-01…P-06 policy enforcement and §4 rendering

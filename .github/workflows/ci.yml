@@ -27,13 +27,13 @@ jobs:
       - name: Install dependencies
         run: |
           uv sync --all-packages
-          uv pip install -e "packages/execution-core[dev]" -e "packages/persistence[dev]" -e "packages/archive[dev]" -e "packages/prose[dev]" -e "packages/mcp_adapter[dev]"
+          uv pip install -e "packages/execution-core[dev]" -e "packages/persistence[dev]" -e "packages/archive[dev]" -e "packages/prose[dev]" -e "packages/mcp_adapter[dev]" -e "packages/application[dev]"
 
       - name: Run ruff lint
-        run: uv run ruff check packages/execution-core packages/persistence packages/archive packages/prose packages/mcp_adapter
+        run: uv run ruff check packages/execution-core packages/persistence packages/archive packages/prose packages/mcp_adapter packages/application
 
       - name: Run ruff format check
-        run: uv run ruff format --check packages/execution-core packages/persistence packages/archive packages/prose packages/mcp_adapter
+        run: uv run ruff format --check packages/execution-core packages/persistence packages/archive packages/prose packages/mcp_adapter packages/application
 
       - name: Run execution-core tests
         run: uv run pytest packages/execution-core/tests --cov=packages/execution-core/src --cov-report=xml --cov-report=term
@@ -49,6 +49,9 @@ jobs:
 
       - name: Run mcp_adapter tests
         run: uv run pytest packages/mcp_adapter/tests --cov=packages/mcp_adapter/src --cov-append --cov-report=xml --cov-report=term
+
+      - name: Run application tests
+        run: uv run pytest packages/application/tests --cov=packages/application/src --cov-append --cov-report=xml --cov-report=term
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v5
