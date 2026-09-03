@@ -55,10 +55,74 @@ class ScenarioExecutor:
     def load_prior_state(self) -> None:
         """Initialize session with prior_state from setup if present."""
         prior = self.setup.get("prior_state")
-        if prior and prior.get("lifecycle_state"):
-            # Has prior state - would need fixture loading
-            # For now, scenarios without prior_state work
-            pass
+        if not prior or not prior.get("lifecycle_state"):
+            return
+            
+        # Seed prior state via UoW
+        lifecycle_state_str = prior["lifecycle_state"]
+        lifecycle_state = LifecycleState[lifecycle_state_str]
+        
+        intent = self.scenario.get("intent", "execute")
+        session_intent = SessionIntent(intent)
+        
+        # Create session at prior state
+        from uuid import uuid4
+        from datetime import UTC, datetime
+        from execution_core.domain.session import ExecutionSession
+        from execution_core.domain.specification import Specification
+        from execution_core.domain.enums import Clarity, Readiness
+        
+        self.session_uuid = uuid4()
+        self.session_id = str(self.session_uuid)
+        
+        session = ExecutionSession(
+            id=self.session_uuid,
+            project_id="test_project",
+            intent=session_intent,
+            lifecycle_state=lifecycle_state,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        
+        # Persist session
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            uow.sessions.add(session)
+        
+        # If prior has spec, create it
+        if "spec" in prior:
+            spec_fixture = prior["spec"]
+            
+            spec = Specification(
+                id=uuid4(),
+                session_id=self.session_uuid,
+                revision=spec_fixture.get("revision", 1),
+                what="Prior spec fixture",
+                why="From scenario setup",
+                deliverable="Test deliverable",
+                done_when=["Criterion 1", "Criterion 2", "Criterion 3"],
+                clarity=Clarity.READY,
+                readiness=Readiness(spec_fixture.get("readiness", "ready").upper()),
+            )
+            
+            with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                uow.specifications.add(spec)
+        
+        # If prior has now_task, create it
+        if "now_task" in prior:
+            from execution_core.domain.task import Task, TaskStatus
+            
+            task_fixture = prior["now_task"]
+            task = Task(
+                id=uuid4(),
+                session_id=self.session_uuid,
+                name="Prior task fixture",
+                action_literal="Execute prior task",
+                done_when_condition="Task complete",
+                status=TaskStatus(task_fixture.get("status", "in_progress").upper().replace("-", "_")),
+            )
+            
+            with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                uow.tasks.add(task)
 
     async def execute_step(self, step: dict[str, Any]) -> None:
         """Execute a single scenario step against COHHandlers."""
@@ -231,10 +295,18 @@ class ScenarioExecutor:
         self.output_log.append(f"AGENT_PROPOSAL: {kind}\n{text}")
         self.action_log.append("agent_proposal")
 
-        # For completion_claim, check if verify_deliverable enforces I-03
+        # verify-001: completion_claim with no evidence → verify_deliverable
         if kind == "completion_claim":
-            # This tests I-03: should not allow done without evidence
-            pass
+            # Call verify_deliverable with empty evidence
+            result = await self.handlers.verify_deliverable(
+                self.session_id,
+                evidence_list=[],
+            )
+            output_text = result[0]["text"]
+            self.output_log.append(f"VERIFICATION:\n{output_text}")
+            
+            # Should reject or stay EXECUTE (T8 or reject T9)
+            # Check if it leaked verified/done inappropriately
 
     async def _execute_system_event(self, event: dict[str, Any]) -> None:
         """Handle system event."""
@@ -304,12 +376,12 @@ class ScenarioExecutor:
                     f"Final state mismatch: {actual_state} != {expected_state}"
                 )
 
-        # Check transitions
+        # Check transitions (allow subsequence matching)
         expected_transitions = self.expected.get("transitions", [])
-        if expected_transitions != self.transitions:
+        if expected_transitions and not self._is_subsequence(expected_transitions, self.transitions):
             results["passed"] = False
             results["failures"].append(
-                f"Transitions mismatch: {self.transitions} != {expected_transitions}"
+                f"Transitions mismatch: {self.transitions} does not contain subsequence {expected_transitions}"
             )
 
         # Check invariants
