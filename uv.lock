@@ -865,6 +865,7 @@ name = "mcp-adapter"
 version = "0.1.0"
 source = { editable = "packages/mcp_adapter" }
 dependencies = [
+    { name = "application" },
     { name = "coh-archive" },
     { name = "execution-core" },
     { name = "mcp" },
@@ -884,6 +885,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "application", editable = "packages/application" },
     { name = "coh-archive", editable = "packages/archive" },
     { name = "execution-core", editable = "packages/execution-core" },
     { name = "mcp", specifier = ">=1.0.0" },

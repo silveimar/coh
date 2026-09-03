@@ -45,11 +45,11 @@ reportUnknownVariableType = false
 reportUnknownArgumentType = false
 
 [tool.pytest.ini_options]
-testpaths = ["packages/*/tests", "apps/*/tests"]
+testpaths = ["packages/*/tests", "apps/*/tests", "evals/tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "--strict-markers --cov --cov-report=term-missing --cov-report=html"
+addopts = "--strict-markers"
 markers = [
     "asyncio: mark test as async",
 ]

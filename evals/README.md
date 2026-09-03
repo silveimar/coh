@@ -1,7 +1,7 @@
 # COH Behavioral Eval Suite
 
-**Suite version:** 1.0.0 · targets Behavioral Contract 1.0.0 · 15 scenarios
-In the future repo this directory becomes `evals/` at the monorepo root; the pytest harness (Phase 1/2) loads every `scenarios/*.yaml` and executes its steps against the Execution Core + a mock adapter.
+**Suite version:** 1.1.0 · targets Behavioral Contract 1.1.0 · 19 scenarios
+In the future repo this directory becomes `evals/` at the monorepo root; the pytest harness loads every `scenarios/*.yaml` and executes its steps against the Execution Core + a mock adapter with deterministic recorded fixtures.
 
 ## Layout
 
@@ -9,9 +9,11 @@ In the future repo this directory becomes `evals/` at the monorepo root; the pyt
 evals/
 ├── README.md                 # this file
 ├── schema/
-│   └── scenario.schema.yaml  # scenario file format (documented schema)
-├── scenarios/                # one file per scenario, ID-prefixed
-└── results/                  # append-only run records (created by the harness)
+│   └── scenario.schema.yaml  # scenario file format v1.1.0 (documented schema)
+├── scenarios/                # 19 scenario files, ID-prefixed
+├── fixtures/                 # recorded inspection findings for mock adapter
+├── tests/                    # pytest harness (test_scenarios.py)
+└── results/                  # append-only run records (gitignored)
 ```
 
 ## Coverage map (PRD Phase 0 requirements → scenarios)
@@ -33,11 +35,19 @@ evals/
 | Brainstorm convergence | brainstorm-001 |
 | Adversarial input | adv-001 |
 | Archive write failure | arch-001 |
+| Spec evidence-first rendering (P-01) | prose-001 |
+| Recap threshold for long explanations (P-04) | prose-002 |
+| Recovery intent prospective exemption (P-06) | prose-003 |
+| Protected field names verbatim (P-05) | prose-004 |
+| Spec evidence-first rendering (P-01) | prose-001 |
+| Recap threshold for long explanations (P-04) | prose-002 |
+| Recovery intent prospective exemption (P-06) | prose-003 |
+| Protected field names verbatim (P-05) | prose-004 |
 
 ## Rules
 
 - Scenario files are versioned; behavior changes require bumping `version` and noting why in the scenario's `notes`.
-- Every `expected.invariants` entry must be an I-nn defined in `../COH-Behavioral-Contract.md`.
-- Assertions marked `severity: critical` map to the rubric's block-release gates (I-02, I-03, I-08, I-13).
+- Every `expected.invariants` entry must be an I-nn or P-nn defined in `docs/behavioral-contract.md`.
+- Assertions marked `severity: critical` map to the rubric's block-release gates (I-02, I-03, I-08, I-13, P-05).
 - The harness must run scenarios with a deterministic mock adapter and recorded fixtures — never live provider calls in CI.
-- Rubric scoring of scenario outputs: see `../COH-Eval-Rubric.md`.
+- Rubric scoring of scenario outputs: see `docs/eval-rubric.md`.
