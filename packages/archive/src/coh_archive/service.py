@@ -48,9 +48,7 @@ class ArchiveService:
             )
         return self._writer
 
-    async def archive_interaction(
-        self, event: ArchiveEvent
-    ) -> ArchiveWriteResult:
+    async def archive_interaction(self, event: ArchiveEvent) -> ArchiveWriteResult:
         """
         Archive user or agent interaction event.
 
@@ -117,9 +115,7 @@ class ArchiveService:
                 project_root=self.project_root,
             )
 
-    async def archive_tool_event(
-        self, event: ToolEvent
-    ) -> ArchiveWriteResult:
+    async def archive_tool_event(self, event: ToolEvent) -> ArchiveWriteResult:
         """
         Archive tool invocation event.
 
@@ -190,9 +186,7 @@ class ArchiveService:
                 project_root=self.project_root,
             )
 
-    def read_session_archive(
-        self, session_file: Path
-    ) -> tuple[dict, list[str]]:
+    def read_session_archive(self, session_file: Path) -> tuple[dict, list[str]]:
         """
         Read and parse session archive file.
 
@@ -207,9 +201,7 @@ class ArchiveService:
             ValueError: If front matter is malformed
         """
         if not session_file.exists():
-            raise FileNotFoundError(
-                f"Session archive not found: {session_file}"
-            )
+            raise FileNotFoundError(f"Session archive not found: {session_file}")
 
         content = session_file.read_text(encoding="utf-8")
 

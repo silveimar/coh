@@ -26,9 +26,7 @@ from .paths import (
 class MarkdownArchiveWriter:
     """Append-only Markdown archive writer with per-session serialization."""
 
-    def __init__(
-        self, archive_dir: Path, config: ArchiveConfig, project_root: Path
-    ):
+    def __init__(self, archive_dir: Path, config: ArchiveConfig, project_root: Path):
         """
         Initialize writer.
 
@@ -97,9 +95,7 @@ class MarkdownArchiveWriter:
         }
         return "---\n" + yaml.dump(front_matter, sort_keys=False) + "---\n\n"
 
-    def _update_front_matter(
-        self, content: str, last_updated: datetime
-    ) -> str:
+    def _update_front_matter(self, content: str, last_updated: datetime) -> str:
         """Update last_updated_at in existing front matter."""
         if not content.startswith("---\n"):
             return content
@@ -113,7 +109,7 @@ class MarkdownArchiveWriter:
             front_matter = yaml.safe_load(front_matter_str)
             front_matter["last_updated_at"] = last_updated.isoformat()
             updated_yaml = yaml.dump(front_matter, sort_keys=False)
-            return f"---\n{updated_yaml}---\n{content[end_marker + 5:]}"
+            return f"---\n{updated_yaml}---\n{content[end_marker + 5 :]}"
         except yaml.YAMLError:
             return content
 
@@ -183,9 +179,7 @@ class MarkdownArchiveWriter:
             "---entry-end---\n\n"
         )
 
-    def _write_artifact(
-        self, artifact_path: Path, payload: dict[str, object]
-    ) -> None:
+    def _write_artifact(self, artifact_path: Path, payload: dict[str, object]) -> None:
         """Write large payload to artifact file."""
         artifact_path.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(
@@ -279,9 +273,7 @@ class MarkdownArchiveWriter:
         """
         lock = self._get_session_lock(event.session_id)
         async with lock:
-            return await asyncio.to_thread(
-                self._write_tool_event_sync, event
-            )
+            return await asyncio.to_thread(self._write_tool_event_sync, event)
 
     def _write_tool_event_sync(
         self, event: ToolEvent
@@ -289,17 +281,13 @@ class MarkdownArchiveWriter:
         """Synchronous tool event write implementation."""
         self.archive_dir.mkdir(parents=True, exist_ok=True)
 
-        entry_id = generate_entry_id(
-            event.actor, event.time, event.tool_name
-        )
+        entry_id = generate_entry_id(event.actor, event.time, event.tool_name)
         artifact_refs: list[str] = []
 
         if event.input_payload:
             input_json = json.dumps(event.input_payload, indent=2)
             if len(input_json) > self.config.max_inline_payload_bytes:
-                artifact_name = generate_artifact_filename(
-                    entry_id, "input", "json"
-                )
+                artifact_name = generate_artifact_filename(entry_id, "input", "json")
                 artifact_path = self.archive_dir / artifact_name
                 self._write_artifact(artifact_path, event.input_payload)
                 artifact_refs.append(artifact_name)
@@ -308,9 +296,7 @@ class MarkdownArchiveWriter:
         if event.output_payload:
             output_json = json.dumps(event.output_payload, indent=2)
             if len(output_json) > self.config.max_inline_payload_bytes:
-                artifact_name = generate_artifact_filename(
-                    entry_id, "output", "json"
-                )
+                artifact_name = generate_artifact_filename(entry_id, "output", "json")
                 artifact_path = self.archive_dir / artifact_name
                 self._write_artifact(artifact_path, event.output_payload)
                 artifact_refs.append(artifact_name)

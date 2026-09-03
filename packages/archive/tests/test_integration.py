@@ -209,7 +209,5 @@ async def test_append_only_never_overwrites(tmp_path: Path):
     assert "Correction: actually do something else" in content
 
     original_idx = content.index("Original incorrect instruction")
-    correction_idx = content.index(
-        "Correction: actually do something else"
-    )
+    correction_idx = content.index("Correction: actually do something else")
     assert original_idx < correction_idx

@@ -109,10 +109,10 @@ The `---entry-end---` delimiter enables incomplete-entry detection after process
 
 ```python
 ArchiveConfig(
-    enabled=True,                      # False to disable archiving
-    directory=".coh/archive",          # Relative or absolute path
-    allow_external_path=False,         # Reject paths outside project root
-    max_inline_payload_bytes=102400,   # 100 KB; larger spills to artifact
+    enabled=True,  # False to disable archiving
+    directory=".coh/archive",  # Relative or absolute path
+    allow_external_path=False,  # Reject paths outside project root
+    max_inline_payload_bytes=102400,  # 100 KB; larger spills to artifact
     rotation_threshold_bytes=5242880,  # 5 MB; trigger rotation
 )
 ```
@@ -148,11 +148,13 @@ class ArchiveReference(BaseModel):
     timestamp: datetime
     anchor: str
 
+
 # Archive service returns ArchivePointer (same shape):
 class ArchivePointer(BaseModel):
     path: str
     entry_id: str  # == anchor
     timestamp: datetime
+
 
 # Checkpoint layer adapts:
 if result.outcome == WriteOutcome.WRITTEN:

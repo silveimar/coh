@@ -14,9 +14,7 @@ class PathResolutionError(Exception):
     pass
 
 
-def resolve_archive_directory(
-    project_root: Path, config: ArchiveConfig
-) -> Path:
+def resolve_archive_directory(project_root: Path, config: ArchiveConfig) -> Path:
     """
     Resolve and validate the archive directory.
 
@@ -41,9 +39,7 @@ def resolve_archive_directory(
         archive_dir = archive_dir.resolve()
         project_root_resolved = project_root.resolve()
     except (OSError, RuntimeError) as e:
-        raise PathResolutionError(
-            f"Failed to resolve archive path: {e}"
-        ) from e
+        raise PathResolutionError(f"Failed to resolve archive path: {e}") from e
 
     if not config.allow_external_path:
         try:
