@@ -6,6 +6,9 @@ requires-python = ">=3.12"
 dependencies = [
     "mcp>=1.0.0",
     "pydantic>=2.9.0",
+    "execution-core",
+    "coh-archive",
+    "prose",
 ]
 
 [project.optional-dependencies]

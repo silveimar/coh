@@ -45,7 +45,8 @@ class TestP02NoScaffolding:
     def test_accepts_clean_prose(self):
         policy = ProsePolicy()
         result = policy.validate_no_scaffolding(
-            "worker.py retry loop has no backoff. The job re-enqueues immediately on failure."
+            "worker.py retry loop has no backoff. "
+            "The job re-enqueues immediately on failure."
         )
         assert result.valid
 

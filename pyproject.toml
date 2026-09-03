@@ -13,6 +13,7 @@ execution-core = { workspace = true }
 persistence = { workspace = true }
 coh-archive = { workspace = true }
 prose = { workspace = true }
+mcp-adapter = { workspace = true }
 
 [tool.ruff]
 line-length = 88

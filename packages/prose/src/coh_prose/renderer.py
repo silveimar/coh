@@ -216,7 +216,8 @@ class ProseRenderer:
         if recovery.archive_degraded:
             output.append("")
             output.append(
-                "Note: Archive status is degraded. Some interaction history may be incomplete."
+                "Note: Archive status is degraded. "
+                "Some interaction history may be incomplete."
             )
 
         return "\n".join(output)
