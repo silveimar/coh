@@ -90,11 +90,14 @@ class COHHandlers:
             session_id, project_id, user_input, checkpoint
         )
 
-        # Persist session + checkpoint
+        # Persist session first (FK parent), then checkpoint (FK child)
         with SqlAlchemyUnitOfWork(self.session_factory) as uow:
             uow.sessions.add(session)
+            # UoW __exit__ commits on success
+
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
             uow.checkpoints.add(checkpoint)
-            uow.commit()
+            # UoW __exit__ commits on success
 
         archive_status = checkpoint.archive_status.value
         return [
@@ -149,67 +152,81 @@ class COHHandlers:
             if not session:
                 return [{"type": "text", "text": f"Session not found: {session_id}"}]
 
+            # Capture expected_version before transitions
+            expected_version = session.version
+
             checkpoint = uow.checkpoints.get_latest_for_session(session_uuid)
 
-            # Archive inspection findings if provided and track success
-            findings_archived = False
-            if inspection_findings:
-                archive_pointer = await self.archive_wiring.archive_agent_output(
-                    session_uuid,
-                    session.project_id,
-                    f"Inspection findings:\n{inspection_findings}",
-                    checkpoint,
-                )
-                findings_archived = archive_pointer is not None
-                # If archive failed, mark degraded but continue
-                if not findings_archived and checkpoint:
-                    checkpoint.mark_degraded()
-
-            done_when_criteria = [
-                DoneWhenCriterion(text=criterion) for criterion in done_when
-            ]
-
-            spec = Specification(
-                id=uuid4(),
-                session_id=session_uuid,
-                revision=1,
-                what=what,
-                why=why,
-                deliverable=deliverable,
-                done_when=done_when_criteria,
-                clarity=Clarity.READY,
-                readiness=Readiness.READY,
+        # Archive inspection findings if provided and track success
+        # T2 requires findings_archived=True:
+        # - If no findings provided, treat as "nothing to archive" = True
+        # - If findings provided, True only if archive write succeeded (fail closed)
+        if inspection_findings:
+            archive_pointer = await self.archive_wiring.archive_agent_output(
+                session_uuid,
+                session.project_id,
+                f"Inspection findings:\n{inspection_findings}",
+                checkpoint,
             )
+            findings_archived = archive_pointer is not None
+            # If archive failed, mark degraded and T2 will fail
+            if not findings_archived and checkpoint:
+                checkpoint.mark_degraded()
+        else:
+            # No findings to archive = success
+            findings_archived = True
 
-            # T2: INSPECT → SPECIFY (findings_archived only True if archive succeeded)
-            command = Command(
-                idempotency_key=f"specify-{session_uuid}-{datetime.now(UTC).isoformat()}",
-                expected_version=session.version,
-                source="user",
-            )
-            session = self.state_machine.transition_to_specify(
-                session, findings_archived=findings_archived, command=command
-            )
+        done_when_criteria = [
+            DoneWhenCriterion(text=criterion) for criterion in done_when
+        ]
 
-            # T3: SPECIFY → CONFIRM
-            command = Command(
-                idempotency_key=f"confirm-{session_uuid}-{datetime.now(UTC).isoformat()}",
-                expected_version=session.version,
-                source="user",
-            )
-            session = self.state_machine.transition_to_confirm(session, spec, command)
-            session.current_spec = spec
+        spec = Specification(
+            id=uuid4(),
+            session_id=session_uuid,
+            revision=1,
+            what=what,
+            why=why,
+            deliverable=deliverable,
+            done_when=done_when_criteria,
+            clarity=Clarity.READY,
+            readiness=Readiness.READY,
+        )
 
-            # Update checkpoint
-            if checkpoint:
-                checkpoint.lifecycle_state = session.lifecycle_state
-                checkpoint.spec_id = spec.id
-                checkpoint.spec_revision = spec.revision
+        # T2: INSPECT → SPECIFY (findings_archived only True if archive succeeded)
+        command = Command(
+            idempotency_key=f"specify-{session_uuid}-{datetime.now(UTC).isoformat()}",
+            expected_version=session.version,
+            source="user",
+        )
+        session = self.state_machine.transition_to_specify(
+            session, findings_archived=findings_archived, command=command
+        )
 
-            # Persist session + spec + checkpoint
-            uow.sessions.update(session, session.version - 2)
+        # T3: SPECIFY → CONFIRM
+        command = Command(
+            idempotency_key=f"confirm-{session_uuid}-{datetime.now(UTC).isoformat()}",
+            expected_version=session.version,
+            source="user",
+        )
+        session = self.state_machine.transition_to_confirm(session, spec, command)
+
+        # Persist spec first (FK parent for session.current_spec_id)
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
             uow.specifications.add(spec)
-            uow.commit()
+            # UoW __exit__ commits on success
+
+        # Now link spec to session and persist session
+        session.current_spec = spec
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            uow.sessions.update(session, expected_version)
+            # UoW __exit__ commits on success
+
+        # Update checkpoint if exists (checkpoint updates are not currently supported)
+        # Checkpoints are immutable except for archive_references
+        if checkpoint:
+            checkpoint.lifecycle_state = session.lifecycle_state
+            checkpoint.spec_id = spec.id
+            checkpoint.spec_revision = spec.revision
 
         # Render spec proposal with P-01
         renderer = ProseRenderer()
@@ -252,63 +269,77 @@ class COHHandlers:
             if not session:
                 return [{"type": "text", "text": f"Session not found: {session_id}"}]
 
-            checkpoint = uow.checkpoints.get_latest_for_session(session_uuid)
+            # Load current_spec by querying ORM model for current_spec_id
+            from sqlalchemy import select
 
-            if confirmed:
-                # T4: CONFIRM → PLAN (I-02 readiness + I-08 confirmation)
+            from persistence.infrastructure.models import ExecutionSessionModel
+
+            stmt = select(ExecutionSessionModel).where(
+                ExecutionSessionModel.id == session_uuid
+            )
+            session_model = uow._session.scalars(stmt).one_or_none()
+            if session_model and session_model.current_spec_id:
+                session.current_spec = uow.specifications.get(
+                    session_model.current_spec_id
+                )
+
+            # Capture expected_version before transitions
+            expected_version = session.version
+
+        if confirmed:
+            # T4: CONFIRM → PLAN (I-02 readiness + I-08 confirmation)
+            command = Command(
+                idempotency_key=f"plan-{session_uuid}-{datetime.now(UTC).isoformat()}",
+                expected_version=session.version,
+                source="user",
+            )
+            session = self.state_machine.transition_to_plan(
+                session,
+                user_confirmed=True,
+                command=command,
+                change_scope="small",  # MCP adapters start with small scope
+            )
+
+            with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                uow.sessions.update(session, expected_version)
+                # UoW __exit__ commits on success
+
+            return [
+                {
+                    "type": "text",
+                    "text": (
+                        "Spec confirmed. Transition: CONFIRM → PLAN\n\n"
+                        "Ready to create executable plan."
+                    ),
+                }
+            ]
+        else:
+            # T5: CONFIRM → SPECIFY (user correction)
+            if corrections and session.current_spec:
                 command = Command(
-                    idempotency_key=f"plan-{session_uuid}-{datetime.now(UTC).isoformat()}",
+                    idempotency_key=f"correct-{session_uuid}-{datetime.now(UTC).isoformat()}",
                     expected_version=session.version,
                     source="user",
                 )
-                session = self.state_machine.transition_to_plan(
-                    session,
-                    user_confirmed=True,
-                    command=command,
-                    change_scope="small",  # MCP adapters start with small scope
+                corrected_spec = session.current_spec.model_copy(update=corrections)
+                session = self.state_machine.correct_spec(
+                    session, corrected_spec, command
                 )
 
-                # Update checkpoint
-                if checkpoint:
-                    checkpoint.lifecycle_state = session.lifecycle_state
+                with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                    uow.sessions.update(session, expected_version)
+                    # UoW __exit__ commits on success
 
-                uow.sessions.update(session, session.version - 1)
-                uow.commit()
-
-                return [
-                    {
-                        "type": "text",
-                        "text": (
-                            "Spec confirmed. Transition: CONFIRM → PLAN\n\n"
-                            "Ready to create executable plan."
-                        ),
-                    }
-                ]
-            else:
-                # T5: CONFIRM → SPECIFY (user correction)
-                if corrections and session.current_spec:
-                    command = Command(
-                        idempotency_key=f"correct-{session_uuid}-{datetime.now(UTC).isoformat()}",
-                        expected_version=session.version,
-                        source="user",
-                    )
-                    corrected_spec = session.current_spec.model_copy(update=corrections)
-                    session = self.state_machine.correct_spec(
-                        session, corrected_spec, command
-                    )
-                    uow.sessions.update(session, session.version - 1)
-                    uow.commit()
-
-                return [
-                    {
-                        "type": "text",
-                        "text": (
-                            "Spec correction required. "
-                            "Transition: CONFIRM → SPECIFY\n\n"
-                            "Provide corrected fields."
-                        ),
-                    }
-                ]
+            return [
+                {
+                    "type": "text",
+                    "text": (
+                        "Spec correction required. "
+                        "Transition: CONFIRM → SPECIFY\n\n"
+                        "Provide corrected fields."
+                    ),
+                }
+            ]
 
     async def create_checkpoint(
         self,
@@ -328,6 +359,21 @@ class COHHandlers:
             session = uow.sessions.get(session_uuid)
             if not session:
                 return [{"type": "text", "text": f"Session not found: {session_id}"}]
+
+            # Load current_spec by querying ORM model for current_spec_id
+            # (persistence to_domain mapper doesn't eager-load relationships)
+            from sqlalchemy import select
+
+            from persistence.infrastructure.models import ExecutionSessionModel
+
+            stmt = select(ExecutionSessionModel).where(
+                ExecutionSessionModel.id == session_uuid
+            )
+            session_model = uow._session.scalars(stmt).one_or_none()
+            if session_model and session_model.current_spec_id:
+                session.current_spec = uow.specifications.get(
+                    session_model.current_spec_id
+                )
 
             # Get latest checkpoint to copy archive_references (I-09)
             prev_checkpoint = uow.checkpoints.get_latest_for_session(session_uuid)
@@ -388,25 +434,29 @@ class COHHandlers:
             if not session:
                 return [{"type": "text", "text": f"Session not found: {session_id}"}]
 
+            # Capture expected_version before T11
+            expected_version = session.version
+
             checkpoint = uow.checkpoints.get_latest_for_session(session_uuid)
             if not checkpoint:
                 return [
                     {"type": "text", "text": f"No checkpoint found for: {session_id}"}
                 ]
 
-            # T11: recover via state machine (restores spec from spec_snapshot)
-            command = Command(
-                idempotency_key=f"recover-{session_uuid}-{datetime.now(UTC).isoformat()}",
-                expected_version=session.version,
-                source="user",
-            )
-            session, recovery_summary = self.state_machine.recover(
-                session, checkpoint, command
-            )
+        # T11: recover via state machine (restores spec from spec_snapshot)
+        command = Command(
+            idempotency_key=f"recover-{session_uuid}-{datetime.now(UTC).isoformat()}",
+            expected_version=session.version,
+            source="user",
+        )
+        session, recovery_summary = self.state_machine.recover(
+            session, checkpoint, command
+        )
 
-            # Persist recovered session
-            uow.sessions.update(session, session.version - 1)
-            uow.commit()
+        # Persist recovered session
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            uow.sessions.update(session, expected_version)
+            # UoW __exit__ commits on success
 
         # Render recovery summary with P-06 exemption (prospective framing allowed)
         renderer = ProseRenderer()

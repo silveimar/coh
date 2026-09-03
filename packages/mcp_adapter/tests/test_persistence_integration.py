@@ -1,11 +1,13 @@
 """Tests for persistence integration and COH gate blockers 1-4."""
 
+import os
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID
 
 import pytest
 
 from coh_mcp.handlers import COHHandlers
+from execution_core.state_machine.lifecycle import TransitionError
 
 
 @pytest.fixture
@@ -80,13 +82,14 @@ async def test_create_checkpoint_preserves_archive_references(
     # Verify via persistence: should have 2 checkpoints (ADD, not replace)
     from persistence.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 
+    session_uuid = UUID(session_id)
     with SqlAlchemyUnitOfWork(handlers.session_factory) as uow:
-        checkpoints = uow.checkpoints.list_by_session(uuid4(session_id))
+        checkpoints = uow.checkpoints.list_by_session(session_uuid)
         # Should have 3: initial from create_session, then 2 explicit
         assert len(checkpoints) >= 2
 
         # Latest checkpoint should have archive_references copied from prior
-        latest = uow.checkpoints.get_latest_for_session(uuid4(session_id))
+        latest = uow.checkpoints.get_latest_for_session(session_uuid)
         assert latest is not None
         # Archive references should be preserved from earlier checkpoints
 
@@ -96,11 +99,31 @@ async def test_specify_work_blocked_when_archive_fails(handlers: COHHandlers):
     """
     Blocker 4: T2 must fail closed when findings_archived=False.
 
-    If archive write fails, mark_degraded but T2 must be passed False.
+    If archive write fails, T2 raises TransitionError (findings_archived=False).
     """
-    # This test requires mocking archive failure, which would need
-    # refactoring the archive_wiring. For now, verify the logic path exists.
-    # The actual implementation in specify_work tracks archive success:
-    # findings_archived = archive_pointer is not None
-    # and passes it to transition_to_specify(findings_archived=...)
-    pass  # Test structure confirmed in code review
+    result = await handlers.create_session("test-project", "Task")
+    session_id = result[0]["text"].split("\n")[0].split(": ")[1]
+
+    # Make archive directory unwritable to force archive failure
+    archive_dir = handlers.project_root / ".coh" / "archive"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    original_mode = archive_dir.stat().st_mode
+    os.chmod(archive_dir, 0o000)
+
+    try:
+        # specify_work with inspection_findings should fail T2 when archive fails
+        with pytest.raises(TransitionError) as exc_info:
+            await handlers.specify_work(
+                session_id,
+                what="Fix bug",
+                why="Needed",
+                deliverable="Code",
+                done_when=["Tests pass"],
+                inspection_findings="Found issue in code",
+            )
+
+        # T2 should fail because findings_archived=False
+        assert "findings not archived" in str(exc_info.value).lower()
+    finally:
+        # Restore permissions
+        os.chmod(archive_dir, original_mode)
