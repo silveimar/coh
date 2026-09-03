@@ -238,10 +238,15 @@ class ProseRenderer:
 
         # Add criterion accounting if available (I-03)
         criteria_header = "CRITERIA_STATUS"
-        if verification.satisfied_count is not None and verification.total_count is not None:
-            criteria_header = f"CRITERIA_STATUS: {verification.satisfied_count}/{verification.total_count}"
+        if (
+            verification.satisfied_count is not None
+            and verification.total_count is not None
+        ):
+            satisfied = verification.satisfied_count
+            total = verification.total_count
+            criteria_header = f"CRITERIA_STATUS: {satisfied}/{total}"
         output.append(criteria_header)
-        
+
         for criterion in verification.criteria_status:
             status = criterion.get("status", "unknown")
             evidence = criterion.get("evidence", "none")
@@ -265,26 +270,40 @@ class ProseRenderer:
             output.append(f"Next action: {verification.next_action}")
 
         rendered = "\n".join(output)
-        
+
         # P-03/P-04: Add recap if output exceeds threshold
-        if verification.satisfied_count is not None and verification.total_count is not None:
-            # Generate recap: restate emerged state (avoid "verified"/"done" to not trigger I-03 checker)
+        if (
+            verification.satisfied_count is not None
+            and verification.total_count is not None
+        ):
+            # Generate recap: restate emerged state
+            # (avoid "verified"/"done" to not trigger I-03 checker)
             failing_criteria = [
-                c.get("criterion") 
-                for c in verification.criteria_status 
+                c.get("criterion")
+                for c in verification.criteria_status
                 if c.get("status") in ["missing evidence", "failed", "inconclusive"]
             ]
-            
-            if verification.satisfied_count == verification.total_count:
-                recap = f"{verification.satisfied_count}/{verification.total_count} criteria satisfied; work complete"
+
+            satisfied = verification.satisfied_count
+            total = verification.total_count
+            if satisfied == total:
+                recap = f"{satisfied}/{total} criteria satisfied; work complete"
             elif failing_criteria:
-                first_failing = failing_criteria[0] if len(failing_criteria) == 1 else f"{len(failing_criteria)} criteria"
-                next_brief = (verification.next_action or 'continue work').split()[0:3]  # First few words
-                next_brief_str = ' '.join(next_brief)
-                recap = f"{verification.satisfied_count}/{verification.total_count} criteria satisfied; {first_failing} fails; next: {next_brief_str}"
+                first_failing = (
+                    failing_criteria[0]
+                    if len(failing_criteria) == 1
+                    else f"{len(failing_criteria)} criteria"
+                )
+                next_action = verification.next_action or "continue work"
+                next_brief_words = next_action.split()[0:3]
+                next_brief_str = " ".join(next_brief_words)
+                recap = (
+                    f"{satisfied}/{total} criteria satisfied; "
+                    f"{first_failing} fails; next: {next_brief_str}"
+                )
             else:
-                recap = f"{verification.satisfied_count}/{verification.total_count} criteria satisfied"
-            
+                recap = f"{satisfied}/{total} criteria satisfied"
+
             rendered = self.add_recap_if_needed(rendered, recap)
 
         return rendered

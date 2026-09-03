@@ -217,7 +217,6 @@ class ScenarioExecutor:
                         text="Which target schema (legacy or new) is authoritative?",
                         blocking=True,
                         discoverable_via_inspection=False,
-                        recommended_default="Use new schema as authoritative",
                     )
                 )
                 spec.update_computed_fields()
@@ -572,7 +571,7 @@ class ScenarioExecutor:
             deliverable="worker.py with backoff and max attempts",
             done_when=[
                 "Exponential backoff implemented",
-                "Max attempt cap implemented", 
+                "Max attempt cap implemented",
                 "Successful retries handled correctly",
                 "Failed jobs logged properly",
                 "Dead-letter queue handling after max attempts",
@@ -678,11 +677,13 @@ class ScenarioExecutor:
 
         policy = ProsePolicy()
         original = "do NOT run the migration against the production database; staging only until sign-off"
-        compressed_invalid = "run the migration when ready"  # Drops negation and warning
+        compressed_invalid = (
+            "run the migration when ready"  # Drops negation and warning
+        )
 
         # Guard should re-emit original (I-06: invalid render mutates nothing)
         guarded_output = policy.guard_compression(original, compressed_invalid)
-        
+
         # The guarded output should be the original, not the invalid compressed version
         self.handler_output.append(guarded_output)
 
@@ -726,53 +727,8 @@ class ScenarioExecutor:
 
         for pattern in self.expected.get("must_include", []):
             if not re.search(pattern, full_output, re.IGNORECASE | re.DOTALL):
-                # Product gap patterns that should xfail, not fail
+                # spec-004 goal revision still has a product gap
                 if (
-                    self.scenario_id == "verify-001-unsupported-claim"
-                    and pattern == "implemented"
-                ):
-                    results["passed"] = False
-                    results["failures"].append(
-                        "Product gap xfail: Product gap (I-03): "
-                        "empty-evidence verify does not render implemented"
-                    )
-                elif (
-                    self.scenario_id == "verify-002-evidence-done" and pattern == "3/3"
-                ):
-                    results["passed"] = False
-                    results["failures"].append(
-                        "Product gap xfail: Product gap (I-03): "
-                        "verification success prose lacks 3/3"
-                    )
-                elif (
-                    self.scenario_id == "spec-003-blocking-unknown"
-                    and pattern == "recommended"
-                ):
-                    results["passed"] = False
-                    results["failures"].append(
-                        "Product gap xfail: Product gap (I-02): "
-                        "blocked confirm_spec payload lacks recommended default"
-                    )
-                elif self.scenario_id == "arch-001-write-failure" and (
-                    pattern.lower() in ["record was not saved", "not saved"]
-                    or "not saved" in pattern.lower()
-                ):
-                    results["passed"] = False
-                    results["failures"].append(
-                        "Product gap xfail: Product gap (I-12): "
-                        "archive write failure does not emit 'record was not saved'"
-                    )
-                elif (
-                    self.scenario_id == "prose-004-protected-fields"
-                    and "do not run the migration" in pattern.lower()
-                ):
-                    # P-05 guard pattern - also a product gap
-                    results["passed"] = False
-                    results["failures"].append(
-                        "Product gap xfail: Product gap (P-05): "
-                        "protected-field guard not wired in handlers"
-                    )
-                elif (
                     self.scenario_id == "spec-004-goal-revision"
                     and pattern == "previous"
                 ):

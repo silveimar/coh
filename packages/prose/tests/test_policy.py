@@ -107,6 +107,30 @@ class TestP05ProtectedFields:
         result = policy.validate_protected_fields(original, compressed)
         assert result.valid
 
+    def test_guard_compression_rejects_invalid(self):
+        """Test guard_compression re-emits original when validation fails."""
+        policy = ProsePolicy()
+        original = (
+            "do NOT run the migration against the production database; "
+            "staging only until sign-off"
+        )
+        compressed_invalid = "run the migration when ready"
+
+        guarded = policy.guard_compression(original, compressed_invalid)
+        # Should re-emit original (I-06: invalid render mutates nothing)
+        assert guarded == original
+
+    def test_guard_compression_accepts_valid(self):
+        """Test guard_compression accepts valid compression that preserves protected fields."""
+        policy = ProsePolicy()
+        # Simple case: no compression, just return the same text
+        original = "Do not run against production. Warning: this is irreversible."
+        compressed_valid = "Do not run against production. Warning: this is irreversible."
+
+        guarded = policy.guard_compression(original, compressed_valid)
+        # Should accept since no protected fields are dropped
+        assert guarded == compressed_valid
+
 
 class TestP06RecoveryExemption:
     """Test P-06: Recovery/foreground exempt from P-01/P-02."""
