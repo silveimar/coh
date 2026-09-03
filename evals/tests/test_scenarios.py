@@ -1,13 +1,16 @@
 """Main pytest test suite for COH Phase 0 eval scenarios.
 
-Discovers and executes all 19 YAML scenarios in evals/scenarios/.
+Discovers and executes all 19 YAML scenarios in evals/scenarios/ against
+real COHHandlers with deterministic mock adapter.
 """
 
+import asyncio
 from pathlib import Path
 
 import pytest
 import yaml
 
+from .mock_adapter import MockAdapter
 from .scenario_executor import ScenarioExecutor
 
 
@@ -15,27 +18,13 @@ from .scenario_executor import ScenarioExecutor
 SCENARIOS_DIR = Path(__file__).parent.parent / "scenarios"
 SCENARIO_FILES = sorted(SCENARIOS_DIR.glob("*.yaml"))
 
-# Product gaps that require xfail or skip
+# Product gaps ONLY - capabilities not yet implemented
 PRODUCT_GAPS = {
-    "drift-001-invalidating-discovery": "Drift detection not yet implemented",
-    "drift-002-intentional-detour": "Drift detection and detour handling not yet implemented",
-    "brainstorm-001-convergence": "Brainstorm convergence gate not yet implemented",
-    "exec-001-scope-expansion": "Scope expansion detection requires runtime inspection",
-    "adv-001-prompt-injection": "Adversarial input handling requires production adapter",
-}
-
-# Scenarios requiring full COHHandlers integration (simplified executor insufficient)
-INTEGRATION_NEEDED = {
-    "spec-001-vague-request": "Requires full inspect → specify → confirm flow with COHHandlers",
-    "spec-002-inferable-ready": "Requires readiness evaluation and T4 auto-proceed logic",
-    "spec-003-blocking-unknown": "Requires readiness=blocked with recommended defaults",
-    "plan-001-foreground": "Requires full planning flow with foreground computation (T4, T6)",
-    "arch-001-write-failure": "Requires archive service integration with degradation handling",
-    "verify-001-unsupported-claim": "Requires evidence gate enforcement (I-03) in verification flow",
-    "prose-001-spec-evidence-first": "Requires prose renderer integration for P-01 evidence-first",
-    "prose-002-recap-threshold": "Requires verification flow with recap rendering (P-04)",
-    "prose-003-recovery-exemption": "Requires recovery flow with prospective framing (P-06)",
-    "prose-004-protected-fields": "Requires spec correction flow with protected field validation (P-05)",
+    "drift-001-invalidating-discovery": ("Drift detection not implemented", "I-11"),
+    "drift-002-intentional-detour": ("Drift detection not implemented", "I-11"),
+    "brainstorm-001-convergence": ("Brainstorm convergence gate not implemented", "convergence"),
+    "exec-001-scope-expansion": ("Scope expansion detection not implemented", "autonomy"),
+    "adv-001-prompt-injection": ("Adversarial input handling not implemented", "I-13"),
 }
 
 
@@ -57,35 +46,26 @@ def load_scenario_metadata(scenario_path: Path) -> dict:
     SCENARIO_FILES,
     ids=[p.stem for p in SCENARIO_FILES],
 )
-def test_scenario(scenario_path: Path, temp_project_root, eval_results_dir):
-    """Execute a single eval scenario and validate outcomes."""
+@pytest.mark.asyncio
+async def test_scenario(scenario_path: Path, temp_project_root, eval_results_dir):
+    """Execute a single eval scenario against COHHandlers and validate outcomes."""
     metadata = load_scenario_metadata(scenario_path)
     scenario_id = metadata["id"]
 
-    # Check for product gaps
+    # Check for product gaps ONLY
     if scenario_id in PRODUCT_GAPS:
-        pytest.skip(f"Product gap: {PRODUCT_GAPS[scenario_id]}")
+        reason, invariant = PRODUCT_GAPS[scenario_id]
+        pytest.skip(f"Product gap ({invariant}): {reason}")
 
-    # Check for integration requirements (harness framework needs full COHHandlers wiring)
-    if scenario_id in INTEGRATION_NEEDED:
-        pytest.xfail(f"Integration needed: {INTEGRATION_NEEDED[scenario_id]}")
+    # Create mock adapter with scenario capabilities
+    with open(scenario_path) as f:
+        scenario = yaml.safe_load(f)
+    capabilities = scenario.get("setup", {}).get("capabilities", [])
+    mock_adapter = MockAdapter(scenario_id, capabilities)
 
-    # Special handling for scenarios requiring capabilities not yet integrated
-    if scenario_id in ["spec-004-goal-revision"]:
-        pytest.xfail("T10 goal revision requires direct StateMachine integration")
-
-    if scenario_id in ["recover-001-interruption"]:
-        pytest.xfail("Recovery flow requires checkpoint/resume integration")
-
-    if scenario_id in ["park-001-low-relevance"]:
-        pytest.xfail("Parking logic not yet integrated with handlers")
-
-    if scenario_id in ["verify-002-evidence-done"]:
-        pytest.xfail("Evidence tracking requires full verification flow")
-
-    # Execute scenario
-    executor = ScenarioExecutor(scenario_path, temp_project_root)
-    results = executor.run()
+    # Execute scenario with real COHHandlers
+    executor = ScenarioExecutor(scenario_path, temp_project_root, mock_adapter)
+    results = await executor.run()
 
     # Write results to eval_results_dir (gitignored)
     result_file = eval_results_dir / f"{scenario_id}.json"
