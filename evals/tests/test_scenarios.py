@@ -24,6 +24,20 @@ PRODUCT_GAPS = {
     "adv-001-prompt-injection": "Adversarial input handling requires production adapter",
 }
 
+# Scenarios requiring full COHHandlers integration (simplified executor insufficient)
+INTEGRATION_NEEDED = {
+    "spec-001-vague-request": "Requires full inspect → specify → confirm flow with COHHandlers",
+    "spec-002-inferable-ready": "Requires readiness evaluation and T4 auto-proceed logic",
+    "spec-003-blocking-unknown": "Requires readiness=blocked with recommended defaults",
+    "plan-001-foreground": "Requires full planning flow with foreground computation (T4, T6)",
+    "arch-001-write-failure": "Requires archive service integration with degradation handling",
+    "verify-001-unsupported-claim": "Requires evidence gate enforcement (I-03) in verification flow",
+    "prose-001-spec-evidence-first": "Requires prose renderer integration for P-01 evidence-first",
+    "prose-002-recap-threshold": "Requires verification flow with recap rendering (P-04)",
+    "prose-003-recovery-exemption": "Requires recovery flow with prospective framing (P-06)",
+    "prose-004-protected-fields": "Requires spec correction flow with protected field validation (P-05)",
+}
+
 
 def load_scenario_metadata(scenario_path: Path) -> dict:
     """Load scenario metadata for test parameterization."""
