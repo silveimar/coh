@@ -857,9 +857,7 @@ Writes failed: {integration.writes_failed}
             }
         ]
 
-    async def plan_work(
-        self, session_id: str, tasks: list[dict]
-    ) -> list[dict]:
+    async def plan_work(self, session_id: str, tasks: list[dict]) -> list[dict]:
         """
         Create executable plan from task list (persist tasks, seed I-01 foreground).
 
@@ -1320,9 +1318,7 @@ Writes failed: {integration.writes_failed}
                         e for e in evidence_objects if e.criterion_id == criterion.id
                     ]
                     status = "satisfied" if matching_ev else "no evidence"
-                    evidence_summary = (
-                        matching_ev[0].summary if matching_ev else "none"
-                    )
+                    evidence_summary = matching_ev[0].summary if matching_ev else "none"
                     criteria_status.append(
                         {
                             "criterion": criterion.text,
@@ -1367,9 +1363,7 @@ Writes failed: {integration.writes_failed}
                         e for e in evidence_objects if e.criterion_id == criterion.id
                     ]
                     status = "satisfied" if matching_ev else "missing evidence"
-                    evidence_summary = (
-                        matching_ev[0].summary if matching_ev else "none"
-                    )
+                    evidence_summary = matching_ev[0].summary if matching_ev else "none"
                     criteria_status.append(
                         {
                             "criterion": criterion.text,
