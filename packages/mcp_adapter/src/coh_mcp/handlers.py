@@ -10,13 +10,11 @@ from coh_archive import ArchiveConfig, ArchiveService
 from execution_core.domain.checkpoint import Checkpoint
 from execution_core.domain.commands import Command
 from execution_core.domain.enums import (
-    Clarity,
     LifecycleState,
     Readiness,
     SessionIntent,
 )
 from execution_core.domain.session import ExecutionSession
-from execution_core.domain.specification import DoneWhenCriterion, Specification
 from execution_core.state_machine.lifecycle import StateMachine
 from persistence.infrastructure.database import (
     create_engine,
@@ -272,7 +270,8 @@ class COHHandlers:
                 {
                     "type": "text",
                     "text": (
-                        f"Cannot confirm specification: readiness is {state.upper()}\n\n"
+                        f"Cannot confirm specification: "
+                        f"readiness is {state.upper()}\n\n"
                         f"Blockers:\n{blockers_text}\n\n"
                         "Read-only inspection remains permitted."
                     ),
@@ -294,7 +293,6 @@ class COHHandlers:
             # Transition SPECIFY → CONFIRM (T3) if not already in CONFIRM
             with SqlAlchemyUnitOfWork(self.session_factory) as uow:
                 session = uow.sessions.get(session_uuid)
-                checkpoint = uow.checkpoints.get_latest_for_session(session_uuid)
 
                 # Load spec to transition with
                 from sqlalchemy import select
@@ -332,7 +330,7 @@ class COHHandlers:
             # T4: CONFIRM → PLAN (I-02 readiness + I-08 confirmation)
             with SqlAlchemyUnitOfWork(self.session_factory) as uow:
                 session = uow.sessions.get(session_uuid)
-                
+
                 # Load spec for session
                 from sqlalchemy import select
 
@@ -346,7 +344,7 @@ class COHHandlers:
                     session.current_spec = uow.specifications.get(
                         session_model.current_spec_id
                     )
-                
+
                 command = Command(
                     idempotency_key=f"plan-{session_uuid}-{datetime.now(UTC).isoformat()}",
                     expected_version=session.version,
@@ -622,7 +620,8 @@ Writes failed: {integration.writes_failed}
             with SqlAlchemyUnitOfWork(self.session_factory) as uow:
                 spec_gate = SpecGateService(uow)
                 blockers = spec_gate._get_readiness_blockers(spec)
-                blockers_text = "\n\nBlockers:\n" + "\n".join(f"- {b}" for b in blockers)
+                blockers_list = "\n".join(f"- {b}" for b in blockers)
+                blockers_text = f"\n\nBlockers:\n{blockers_list}"
 
         return [
             {
@@ -632,7 +631,9 @@ Writes failed: {integration.writes_failed}
                     f"WHAT: {spec.what}\n"
                     f"WHY: {spec.why}\n"
                     f"DELIVERABLE: {spec.deliverable}\n"
-                    f"DONE WHEN:\n" + "\n".join(f"- {d.text}" for d in spec.done_when) + "\n\n"
+                    "DONE WHEN:\n"
+                    + "\n".join(f"- {d.text}" for d in spec.done_when)
+                    + "\n\n"
                     f"Clarity: {spec.clarity.value}\n"
                     f"Readiness: {spec.readiness.value}"
                     f"{blockers_text}"
@@ -697,7 +698,7 @@ Writes failed: {integration.writes_failed}
 
         # Render with P-06 (foreground uses prospective framing)
         renderer = ProseRenderer()
-        
+
         # Prepare foreground for rendering (I-01 metadata)
         if foreground.now_task:
             now_text = foreground.now_task.action_literal or "No action"
@@ -762,14 +763,25 @@ Writes failed: {integration.writes_failed}
             except ValueError as e:
                 return [{"type": "text", "text": f"Error: {e}"}]
 
+        now_literal = (
+            new_foreground.now_task.action_literal
+            if new_foreground.now_task
+            else "None"
+        )
+        next_literal = (
+            new_foreground.next_1_task.action_literal
+            if new_foreground.next_1_task
+            else "None"
+        )
+
         return [
             {
                 "type": "text",
                 "text": (
                     f"Task {task_id} completed.\n\n"
                     f"New foreground:\n"
-                    f"NOW: {new_foreground.now_task.action_literal if new_foreground.now_task else 'None'}\n"
-                    f"NEXT: {new_foreground.next_1_task.action_literal if new_foreground.next_1_task else 'None'}"
+                    f"NOW: {now_literal}\n"
+                    f"NEXT: {next_literal}"
                 ),
             }
         ]
@@ -795,14 +807,25 @@ Writes failed: {integration.writes_failed}
             except ValueError as e:
                 return [{"type": "text", "text": f"Error: {e}"}]
 
+        now_literal = (
+            new_foreground.now_task.action_literal
+            if new_foreground.now_task
+            else "None"
+        )
+        next_literal = (
+            new_foreground.next_1_task.action_literal
+            if new_foreground.next_1_task
+            else "None"
+        )
+
         return [
             {
                 "type": "text",
                 "text": (
                     f"Task {task_id} blocked: {reason}\n\n"
                     f"New foreground:\n"
-                    f"NOW: {new_foreground.now_task.action_literal if new_foreground.now_task else 'None'}\n"
-                    f"NEXT: {new_foreground.next_1_task.action_literal if new_foreground.next_1_task else 'None'}"
+                    f"NOW: {now_literal}\n"
+                    f"NEXT: {next_literal}"
                 ),
             }
         ]

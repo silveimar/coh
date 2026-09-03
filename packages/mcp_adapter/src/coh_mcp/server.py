@@ -95,7 +95,8 @@ def create_server(project_root: Path | None = None) -> Server:
             Tool(
                 name="propose_spec",
                 description=(
-                    "Propose specification via SpecGateService (read-only, always permitted)"
+                    "Propose specification via SpecGateService "
+                    "(read-only, always permitted)"
                 ),
                 inputSchema={
                     "type": "object",
