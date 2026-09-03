@@ -857,6 +857,541 @@ Writes failed: {integration.writes_failed}
             }
         ]
 
+    async def plan_work(self, session_id: str, tasks: list[dict]) -> list[dict]:
+        """
+        Create executable plan from task list (persist tasks, seed I-01 foreground).
+
+        Session MUST already be PLAN. Does NOT call T6.
+        Returns P-06 foreground (ExecutionForeground).
+        """
+        from coh_prose import ExecutionForeground, ProseRenderer
+        from execution_core.domain.enums import (
+            ActivationFriction,
+            EnergyLevel,
+            TaskStatus,
+        )
+        from execution_core.domain.task import Task
+
+        session_uuid = UUID(session_id)
+
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            session = uow.sessions.get(session_uuid)
+            if not session:
+                return [{"type": "text", "text": f"Session not found: {session_id}"}]
+
+            # Guard: session must already be PLAN
+            if session.lifecycle_state != LifecycleState.PLAN:
+                return [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"Session is not in PLAN state. "
+                            f"Current state: {session.lifecycle_state.value}. "
+                            f"Call confirm_spec first to transition CONFIRM → PLAN."
+                        ),
+                    }
+                ]
+
+            # Load current_spec via SpecGateService
+            spec_gate = SpecGateService(uow)
+            spec_status = spec_gate.get_spec_status(session_uuid)
+            if "error" in spec_status:
+                return [{"type": "text", "text": spec_status["error"]}]
+
+            spec_id = UUID(spec_status["spec_id"])
+            spec = uow.specifications.get(spec_id)
+            if not spec:
+                return [
+                    {
+                        "type": "text",
+                        "text": "No specification found. Create specification first.",
+                    }
+                ]
+
+            # Parse and persist task list
+            for task_data in tasks:
+                task = Task(
+                    spec_id=spec.id,
+                    spec_revision=spec.revision,
+                    action_literal=task_data.get("action_literal"),
+                    done_when_condition=task_data.get("done_when_condition"),
+                    estimated_minutes=task_data.get("estimated_minutes"),
+                    energy=(
+                        EnergyLevel(task_data["energy"])
+                        if "energy" in task_data
+                        else None
+                    ),
+                    activation_friction=(
+                        ActivationFriction(task_data["activation_friction"])
+                        if "activation_friction" in task_data
+                        else None
+                    ),
+                    status=TaskStatus.PLANNED,
+                    dependencies=task_data.get("dependencies", []),
+                )
+                uow.tasks.add(task)
+
+            uow.commit()
+
+        # Calculate I-01 foreground via ForegroundService (does NOT call T6)
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            fg_service = ForegroundService(uow)
+            foreground = fg_service.calculate_foreground(session_uuid, goal=spec.what)
+
+        # Render P-06 foreground
+        renderer = ProseRenderer()
+        prose_fg = ExecutionForeground(
+            goal=foreground.goal,
+            now=foreground.now_task.action_literal if foreground.now_task else "None",
+            now_done_when=(
+                foreground.now_task.done_when_condition
+                if foreground.now_task
+                else "None"
+            ),
+            now_minutes=(
+                foreground.now_task.estimated_minutes if foreground.now_task else None
+            ),
+            now_energy=(
+                foreground.now_task.energy.value if foreground.now_task else None
+            ),
+            now_friction=(
+                foreground.now_task.activation_friction.value
+                if foreground.now_task
+                else None
+            ),
+            next_1=(
+                foreground.next_1_task.action_literal
+                if foreground.next_1_task
+                else None
+            ),
+            next_2=(
+                foreground.next_2_task.action_literal
+                if foreground.next_2_task
+                else None
+            ),
+            parked_count=foreground.parked_count,
+        )
+
+        rendered = renderer.render_execution_foreground(prose_fg)
+
+        return [
+            {
+                "type": "text",
+                "text": rendered,
+            }
+        ]
+
+    async def execute_task(self, session_id: str) -> list[dict]:
+        """
+        Execute planned work (T6: PLAN → EXECUTE).
+
+        Fails closed if no NOW, missing NOW metadata, unresolved deps, or NEXT > 2.
+        If already EXECUTE, returns current foreground.
+        """
+        from coh_application.foreground_service import ForegroundService
+        from coh_prose import ExecutionForeground, ProseRenderer
+        from execution_core.domain.commands import ConcurrencyError
+        from execution_core.state_machine.lifecycle import TransitionError
+
+        session_uuid = UUID(session_id)
+
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            session = uow.sessions.get(session_uuid)
+            if not session:
+                return [{"type": "text", "text": f"Session not found: {session_id}"}]
+
+            # Load current_spec via SpecGateService
+            spec_gate = SpecGateService(uow)
+            spec_status = spec_gate.get_spec_status(session_uuid)
+            if "error" in spec_status:
+                return [{"type": "text", "text": spec_status["error"]}]
+
+            spec_id = UUID(spec_status["spec_id"])
+            spec = uow.specifications.get(spec_id)
+            if not spec:
+                return [
+                    {
+                        "type": "text",
+                        "text": "No specification found. Create specification first.",
+                    }
+                ]
+
+            # Set session.current_spec before any transitions
+            session.current_spec = spec
+
+            # If already EXECUTE, return current foreground
+            if session.lifecycle_state == LifecycleState.EXECUTE:
+                fg_service = ForegroundService(uow)
+                foreground = fg_service.calculate_foreground(
+                    session_uuid, goal=spec.what
+                )
+
+                renderer = ProseRenderer()
+                prose_fg = ExecutionForeground(
+                    goal=foreground.goal,
+                    now=(
+                        foreground.now_task.action_literal
+                        if foreground.now_task
+                        else "None"
+                    ),
+                    now_done_when=(
+                        foreground.now_task.done_when_condition
+                        if foreground.now_task
+                        else "None"
+                    ),
+                    now_minutes=(
+                        foreground.now_task.estimated_minutes
+                        if foreground.now_task
+                        else None
+                    ),
+                    now_energy=(
+                        foreground.now_task.energy.value
+                        if foreground.now_task
+                        else None
+                    ),
+                    now_friction=(
+                        foreground.now_task.activation_friction.value
+                        if foreground.now_task
+                        else None
+                    ),
+                    next_1=(
+                        foreground.next_1_task.action_literal
+                        if foreground.next_1_task
+                        else None
+                    ),
+                    next_2=(
+                        foreground.next_2_task.action_literal
+                        if foreground.next_2_task
+                        else None
+                    ),
+                    parked_count=foreground.parked_count,
+                )
+
+                rendered = renderer.render_execution_foreground(prose_fg)
+
+                return [
+                    {
+                        "type": "text",
+                        "text": f"Already in EXECUTE state.\n\n{rendered}",
+                    }
+                ]
+
+            # T6: PLAN → EXECUTE
+            if session.lifecycle_state != LifecycleState.PLAN:
+                return [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"Cannot execute from {session.lifecycle_state.value} "
+                            f"state. Must be in PLAN state."
+                        ),
+                    }
+                ]
+
+            # Capture expected_version before T6
+            expected_version = session.version
+
+            # Load tasks for T6
+            tasks = uow.tasks.list_by_spec(spec.id)
+
+            # T6 via StateMachine (includes I-02 readiness + I-01 validation)
+            command = Command(
+                idempotency_key=f"execute-{session_uuid}-{datetime.now(UTC).isoformat()}",
+                expected_version=session.version,
+                source="user",
+            )
+
+            try:
+                session = self.state_machine.transition_to_execute(
+                    session, command, tasks
+                )
+            except (TransitionError, ConcurrencyError) as e:
+                # T6 failed: session stays PLAN (do not persist)
+                return [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"Cannot transition to EXECUTE: {str(e)}\n\n"
+                            f"Session remains in PLAN state."
+                        ),
+                    }
+                ]
+
+            # Persist updated session
+            uow.sessions.update(session, expected_version)
+            uow.commit()
+
+        # Calculate foreground after T6
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            fg_service = ForegroundService(uow)
+            foreground = fg_service.calculate_foreground(session_uuid, goal=spec.what)
+
+        # Render P-06 foreground
+        renderer = ProseRenderer()
+        prose_fg = ExecutionForeground(
+            goal=foreground.goal,
+            now=foreground.now_task.action_literal if foreground.now_task else "None",
+            now_done_when=(
+                foreground.now_task.done_when_condition
+                if foreground.now_task
+                else "None"
+            ),
+            now_minutes=(
+                foreground.now_task.estimated_minutes if foreground.now_task else None
+            ),
+            now_energy=(
+                foreground.now_task.energy.value if foreground.now_task else None
+            ),
+            now_friction=(
+                foreground.now_task.activation_friction.value
+                if foreground.now_task
+                else None
+            ),
+            next_1=(
+                foreground.next_1_task.action_literal
+                if foreground.next_1_task
+                else None
+            ),
+            next_2=(
+                foreground.next_2_task.action_literal
+                if foreground.next_2_task
+                else None
+            ),
+            parked_count=foreground.parked_count,
+        )
+
+        rendered = renderer.render_execution_foreground(prose_fg)
+
+        return [
+            {
+                "type": "text",
+                "text": f"Transition: PLAN → EXECUTE\n\n{rendered}",
+            }
+        ]
+
+    async def verify_deliverable(
+        self, session_id: str, evidence_list: list[dict]
+    ) -> list[dict]:
+        """
+        Verify deliverable with evidence (T7 → T9 or T8).
+
+        T7: EXECUTE → VERIFY
+        T9: VERIFY → COMPLETE (with satisfying evidence)
+        T8: VERIFY → EXECUTE (failed verification)
+        """
+        from coh_prose import ProseRenderer, VerificationResult
+        from execution_core.domain.commands import ConcurrencyError
+        from execution_core.domain.enums import EvidenceAuthority, EvidenceResult
+        from execution_core.domain.evidence import Evidence
+        from execution_core.policies.completion_policy import CompletionViolation
+        from execution_core.state_machine.lifecycle import TransitionError
+
+        session_uuid = UUID(session_id)
+
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            session = uow.sessions.get(session_uuid)
+            if not session:
+                return [{"type": "text", "text": f"Session not found: {session_id}"}]
+
+            # Load current_spec via SpecGateService
+            spec_gate = SpecGateService(uow)
+            spec_status = spec_gate.get_spec_status(session_uuid)
+            if "error" in spec_status:
+                return [{"type": "text", "text": spec_status["error"]}]
+
+            spec_id = UUID(spec_status["spec_id"])
+            spec = uow.specifications.get(spec_id)
+            if not spec:
+                return [
+                    {
+                        "type": "text",
+                        "text": "No specification found. Create specification first.",
+                    }
+                ]
+
+            # Set session.current_spec before any transitions
+            session.current_spec = spec
+
+            # T7: EXECUTE → VERIFY
+            if session.lifecycle_state == LifecycleState.EXECUTE:
+                expected_version = session.version
+
+                command = Command(
+                    idempotency_key=f"verify-{session_uuid}-{datetime.now(UTC).isoformat()}",
+                    expected_version=session.version,
+                    source="user",
+                )
+
+                try:
+                    session = self.state_machine.transition_to_verify(session, command)
+                    uow.sessions.update(session, expected_version)
+                    uow.commit()
+                except (TransitionError, ConcurrencyError) as e:
+                    return [
+                        {
+                            "type": "text",
+                            "text": f"Cannot transition to VERIFY: {str(e)}",
+                        }
+                    ]
+
+            elif session.lifecycle_state != LifecycleState.VERIFY:
+                return [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"Cannot verify from {session.lifecycle_state.value} "
+                            f"state. Must be in EXECUTE or VERIFY state."
+                        ),
+                    }
+                ]
+
+        # Parse and persist evidence
+        evidence_objects = []
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            session = uow.sessions.get(session_uuid)
+
+            # Reload current_spec and set on session
+            spec_gate = SpecGateService(uow)
+            spec_status = spec_gate.get_spec_status(session_uuid)
+            spec = uow.specifications.get(UUID(spec_status["spec_id"]))
+            session.current_spec = spec
+
+            for ev_data in evidence_list:
+                # Find criterion by text match
+                criterion_id = None
+                for criterion in spec.done_when:
+                    if criterion.text == ev_data.get("criterion_text"):
+                        criterion_id = criterion.id
+                        break
+
+                if not criterion_id:
+                    continue
+
+                evidence = Evidence(
+                    spec_id=spec.id,
+                    spec_revision=spec.revision,
+                    criterion_id=criterion_id,
+                    evidence_type=ev_data.get("evidence_type", "manual"),
+                    authority=EvidenceAuthority(
+                        ev_data.get("authority", "user_accepted")
+                    ),
+                    result=EvidenceResult(ev_data.get("result", "pass")),
+                    summary=ev_data.get("summary", ""),
+                    source=ev_data.get("source", "user"),
+                )
+                uow.evidence.add(evidence)
+                evidence_objects.append(evidence)
+
+            uow.commit()
+
+        # Try T9: VERIFY → COMPLETE
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            session = uow.sessions.get(session_uuid)
+
+            # Reload current_spec and set on session before T9
+            spec_gate = SpecGateService(uow)
+            spec_status = spec_gate.get_spec_status(session_uuid)
+            spec = uow.specifications.get(UUID(spec_status["spec_id"]))
+            session.current_spec = spec
+
+            expected_version = session.version
+
+            command = Command(
+                idempotency_key=f"complete-{session_uuid}-{datetime.now(UTC).isoformat()}",
+                expected_version=session.version,
+                source="user",
+            )
+
+            try:
+                # T9: CompletionPolicy.require_evidence_for_verification enforces I-03
+                session = self.state_machine.transition_to_complete(
+                    session, evidence_objects, command
+                )
+                uow.sessions.update(session, expected_version)
+                uow.commit()
+
+                # Render verification success
+                renderer = ProseRenderer()
+                criteria_status = []
+                for criterion in spec.done_when:
+                    matching_ev = [
+                        e for e in evidence_objects if e.criterion_id == criterion.id
+                    ]
+                    status = "satisfied" if matching_ev else "no evidence"
+                    evidence_summary = matching_ev[0].summary if matching_ev else "none"
+                    criteria_status.append(
+                        {
+                            "criterion": criterion.text,
+                            "status": status,
+                            "evidence": evidence_summary,
+                        }
+                    )
+
+                verification = VerificationResult(
+                    deliverable=spec.deliverable,
+                    criteria_status=criteria_status,
+                    completion_state="complete",
+                    remaining_blockers=[],
+                    next_action="Work is complete",
+                )
+
+                rendered = renderer.render_verification(verification)
+
+                return [
+                    {
+                        "type": "text",
+                        "text": f"Transition: VERIFY → COMPLETE\n\n{rendered}",
+                    }
+                ]
+
+            except CompletionViolation as e:
+                # T8: VERIFY → EXECUTE (failed verification)
+                command_t8 = Command(
+                    idempotency_key=f"return-execute-{session_uuid}-{datetime.now(UTC).isoformat()}",
+                    expected_version=session.version,
+                    source="user",
+                )
+                session = self.state_machine.return_to_execute(session, command_t8)
+                uow.sessions.update(session, expected_version)
+                uow.commit()
+
+                # Render verification failure
+                renderer = ProseRenderer()
+                criteria_status = []
+                for criterion in spec.done_when:
+                    matching_ev = [
+                        e for e in evidence_objects if e.criterion_id == criterion.id
+                    ]
+                    status = "satisfied" if matching_ev else "missing evidence"
+                    evidence_summary = matching_ev[0].summary if matching_ev else "none"
+                    criteria_status.append(
+                        {
+                            "criterion": criterion.text,
+                            "status": status,
+                            "evidence": evidence_summary,
+                        }
+                    )
+
+                verification = VerificationResult(
+                    deliverable=spec.deliverable,
+                    criteria_status=criteria_status,
+                    completion_state="execute",
+                    remaining_blockers=e.missing_criteria,
+                    next_action="Continue execution to address missing criteria",
+                )
+
+                rendered = renderer.render_verification(verification)
+
+                return [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"Verification failed. Transition: VERIFY → EXECUTE\n\n"
+                            f"{rendered}"
+                        ),
+                    }
+                ]
+
     def _infer_intent(self, user_input: str) -> str:
         """Infer intent from user input (T1)."""
         user_lower = user_input.lower()
