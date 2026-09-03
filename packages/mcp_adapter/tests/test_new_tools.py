@@ -356,9 +356,7 @@ async def test_verify_deliverable_without_evidence_does_not_complete(
     await handlers.execute_task(session_id)
 
     # Try to verify with no evidence
-    result = await handlers.verify_deliverable(
-        session_id=session_id, evidence_list=[]
-    )
+    result = await handlers.verify_deliverable(session_id=session_id, evidence_list=[])
 
     assert "Verification failed" in result[0]["text"]
     assert "VERIFY → EXECUTE" in result[0]["text"]
