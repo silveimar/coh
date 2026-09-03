@@ -94,7 +94,10 @@ class InvariantChecker:
         # Check for retroactive modification timestamps
         timestamps = [e.get("timestamp") for e in archive_entries if e.get("timestamp")]
         if timestamps != sorted(timestamps):
-            return False, "Archive entries not in chronological order (rewrite suspected)"
+            return (
+                False,
+                "Archive entries not in chronological order (rewrite suspected)",
+            )
 
         return True, "I-04 satisfied"
 
@@ -294,7 +297,10 @@ class InvariantChecker:
             ]
             for pattern in fabrication_patterns:
                 if re.search(pattern, output_text, re.IGNORECASE):
-                    return False, f"Fabrication detected when capability unavailable: {pattern}"
+                    return (
+                        False,
+                        f"Fabrication detected when capability unavailable: {pattern}",
+                    )
 
         return True, "I-14 satisfied"
 
@@ -334,7 +340,9 @@ class ProseRuleChecker:
         return True, "P-01 satisfied"
 
     @staticmethod
-    def check_p02_no_preview_scaffolding(output_text: str, intent: str) -> tuple[bool, str]:
+    def check_p02_no_preview_scaffolding(
+        output_text: str, intent: str
+    ) -> tuple[bool, str]:
         """P-02: No prospective framing outside recovery."""
         # Not applicable for recovery intent (P-06)
         if intent == "recover":
@@ -377,7 +385,6 @@ class ProseRuleChecker:
         lines = output_text.split("\n")
 
         # Find explanation blocks (between headers or large paragraphs)
-        in_explanation = False
         explanation_lines = []
 
         for line in lines:
@@ -394,7 +401,6 @@ class ProseRuleChecker:
                         return False, "Long explanation (>12 lines) missing recap"
 
                 explanation_lines = []
-                in_explanation = False
             elif line.strip():
                 explanation_lines.append(line)
 

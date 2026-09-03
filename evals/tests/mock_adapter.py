@@ -4,9 +4,7 @@ Returns recorded fixtures; never calls live LLMs or network.
 Implements capabilities from setup.capabilities only.
 """
 
-from pathlib import Path
 from typing import Any
-from uuid import UUID
 
 from coh_mcp.errors import CapabilityNotImplementedError
 from evals.fixtures.inspection_findings import INSPECTION_FINDINGS
@@ -14,7 +12,7 @@ from evals.fixtures.inspection_findings import INSPECTION_FINDINGS
 
 class MockAdapter:
     """Deterministic mock adapter for eval harness.
-    
+
     Supplies recorded fixtures when scenario lists a capability.
     Raises CapabilityNotImplementedError otherwise (I-14).
     """
@@ -33,7 +31,11 @@ class MockAdapter:
     ) -> list[dict]:
         """Return recorded inspection findings for this scenario."""
         self.call_log.append(
-            {"tool": "inspect_repository", "session_id": session_id, "patterns": patterns}
+            {
+                "tool": "inspect_repository",
+                "session_id": session_id,
+                "patterns": patterns,
+            }
         )
 
         if not self.has_capability("inspect_repository"):
@@ -43,7 +45,7 @@ class MockAdapter:
             )
 
         finding = INSPECTION_FINDINGS.get(self.scenario_id, "No fixture available")
-        
+
         return [
             {
                 "type": "text",
