@@ -490,10 +490,16 @@ class COHHandlers:
             f"Checkpoint created: {checkpoint.id}\nRestart action: {restart_action}",
             checkpoint,
         )
-        
-        if archive_pointer is None and checkpoint.archive_status.value == "degraded":
+
+        if (
+            archive_pointer is None
+            and checkpoint.archive_status.value == "degraded"
+        ):
             # Archive write failed - emit non-blocking warning (I-12)
-            archive_warning = "\n\nWarning: Archive record was not saved. Checkpoint persisted but history is incomplete."
+            archive_warning = (
+                "\n\nWarning: Archive record was not saved. "
+                "Checkpoint persisted but history is incomplete."
+            )
 
         state = checkpoint.lifecycle_state.value
         archive_status = checkpoint.archive_status.value
@@ -1326,7 +1332,7 @@ Writes failed: {integration.writes_failed}
 
                 # Render verification success with criterion accounting (I-03)
                 renderer = ProseRenderer()
-                
+
                 # Count satisfied vs total criteria
                 satisfied_count = 0
                 criteria_status = []
@@ -1337,7 +1343,7 @@ Writes failed: {integration.writes_failed}
                     is_satisfied = bool(matching_ev)
                     if is_satisfied:
                         satisfied_count += 1
-                        
+
                     status = "satisfied" if is_satisfied else "no evidence"
                     evidence_summary = matching_ev[0].summary if matching_ev else "none"
                     criteria_status.append(
@@ -1387,7 +1393,7 @@ Writes failed: {integration.writes_failed}
 
                 # Render verification failure with honest ceiling
                 renderer = ProseRenderer()
-                
+
                 # Count satisfied vs total criteria
                 satisfied_count = 0
                 criteria_status = []
@@ -1398,7 +1404,7 @@ Writes failed: {integration.writes_failed}
                     is_satisfied = bool(matching_ev)
                     if is_satisfied:
                         satisfied_count += 1
-                    
+
                     status = "satisfied" if is_satisfied else "missing evidence"
                     evidence_summary = matching_ev[0].summary if matching_ev else "none"
                     criteria_status.append(
