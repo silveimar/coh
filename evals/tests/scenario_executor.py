@@ -70,6 +70,12 @@ class ScenarioExecutor:
             await self._execute_agent_proposal(step["agent_proposal"])
         elif "system_event" in step:
             await self._execute_system_event(step["system_event"])
+        elif "expect" in step and len(step) == 1:
+            # Standalone expect block
+            pass
+        else:
+            # Unknown step type
+            pass
 
         # Check per-step expectations if present
         if "expect" in step:
@@ -101,8 +107,18 @@ class ScenarioExecutor:
             self.transitions.append("T1")
             
             # Auto-call specify_work for spec scenarios
-            if self.scenario.get("category") == "spec_gate":
+            category = self.scenario.get("category")
+            if category == "spec_gate":
                 await self._auto_specify(message)
+            elif category == "planning":
+                # plan-001: needs prior CONFIRM state, then plan_work
+                await self._auto_specify(message)
+                await self._auto_plan()
+        else:
+            # Subsequent message - context-dependent handling
+            category = self.scenario.get("category")
+            if "plan it" in message.lower():
+                await self._auto_plan()
 
     async def _auto_specify(self, user_message: str) -> None:
         """Automatically call specify_work for spec_gate scenarios."""
@@ -151,6 +167,53 @@ class ScenarioExecutor:
         output_text = result[0]["text"]
         self.output_log.append(f"SPEC_PROPOSAL:\n{output_text}")
         self.transitions.extend(["T2", "T3"])
+
+    async def _auto_plan(self) -> None:
+        """Automatically call plan_work for planning scenarios."""
+        # Confirm spec first (T4) if in CONFIRM state
+        current_state = self._get_current_lifecycle_state()
+        if current_state == "CONFIRM":
+            result = await self.handlers.confirm_spec(self.session_id, confirmed=True)
+            output_text = result[0]["text"]
+            self.output_log.append(f"CONFIRM:\n{output_text}")
+            self.transitions.append("T4")
+
+        # Create sample task list
+        tasks = [
+            {
+                "name": "Task A",
+                "action_literal": "Implement component A",
+                "done_when_condition": "Tests pass for A",
+                "estimated_minutes": 30,
+                "energy": "medium",
+                "activation_friction": "low",
+                "dependencies": [],
+            },
+            {
+                "name": "Task B", 
+                "action_literal": "Implement component B",
+                "done_when_condition": "Tests pass for B",
+                "estimated_minutes": 20,
+                "energy": "low",
+                "activation_friction": "low",
+                "dependencies": [],
+            },
+            {
+                "name": "Task C",
+                "action_literal": "Integrate A and B",
+                "done_when_condition": "Integration tests pass",
+                "estimated_minutes": 45,
+                "energy": "high",
+                "activation_friction": "medium",
+                "dependencies": [],
+                "goal_leverage": "high",
+            },
+        ]
+
+        result = await self.handlers.plan_work(self.session_id, tasks=tasks)
+        output_text = result[0]["text"]
+        self.output_log.append(f"PLAN:\n{output_text}")
+        self.transitions.append("T6")
 
     async def _execute_tool_event(self, event: dict[str, Any]) -> None:
         """Handle tool event."""
