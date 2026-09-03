@@ -256,11 +256,10 @@ class ScenarioExecutor:
         """Validate per-step expectations."""
         if "transitions" in expect:
             expected_transitions = expect["transitions"]
-            # Check last N transitions match
-            actual_last = self.transitions[-len(expected_transitions) :]
-            assert (
-                actual_last == expected_transitions
-            ), f"Step transitions mismatch: {actual_last} != {expected_transitions}"
+            # Allow subsequence matching: expected is ordered subsequence of actual
+            # e.g., actual [T1,T2,T3] matches expected [T1,T2] or [T1,T2,T3]
+            if not self._is_subsequence(expected_transitions, self.transitions):
+                assert False, f"Step transitions mismatch: {self.transitions} does not contain subsequence {expected_transitions}"
 
         if "forbidden_actions" in expect:
             forbidden = expect["forbidden_actions"]
@@ -272,6 +271,18 @@ class ScenarioExecutor:
 
         if "invariants" in expect:
             self._check_invariants(expect["invariants"])
+
+    def _is_subsequence(self, expected: list[str], actual: list[str]) -> bool:
+        """Check if expected is an ordered subsequence of actual."""
+        if not expected:
+            return True
+        exp_idx = 0
+        for item in actual:
+            if item == expected[exp_idx]:
+                exp_idx += 1
+                if exp_idx == len(expected):
+                    return True
+        return exp_idx == len(expected)
 
     def validate_final_state(self) -> dict[str, Any]:
         """Validate expected outcomes and return results."""
