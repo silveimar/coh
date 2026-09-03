@@ -71,7 +71,8 @@ class ForegroundService:
         if task.foreground_position != ForegroundPosition.NOW:
             raise ValueError(f"Task {task_id} is not the NOW task")
 
-        progress_record = TaskProgressRecord(
+        # I-05: Create progress record before state change (persistence deferred)
+        _progress_record = TaskProgressRecord(
             task_id=task_id,
             status=task.status,
             completed_work=[completion_notes or "Task completed"],
@@ -122,7 +123,8 @@ class ForegroundService:
         if task.foreground_position != ForegroundPosition.NOW:
             raise ValueError(f"Task {task_id} is not the NOW task")
 
-        progress_record = TaskProgressRecord(
+        # I-05: Create progress record before state change (persistence deferred)
+        _progress_record = TaskProgressRecord(
             task_id=task_id,
             status=task.status,
             blockers=[reason],
@@ -170,7 +172,8 @@ class ForegroundService:
         if not task:
             raise ValueError(f"Task {task_id} not found")
 
-        progress_record = TaskProgressRecord(
+        # I-05: Create progress record before state change (persistence deferred)
+        _progress_record = TaskProgressRecord(
             task_id=task_id,
             status=task.status,
             attempted_work=[f"Parked: {reason}"],
@@ -227,7 +230,8 @@ class ForegroundService:
         if task.foreground_position != ForegroundPosition.NOW:
             raise ValueError(f"Task {task_id} is not the NOW task")
 
-        progress_record = TaskProgressRecord(
+        # I-05: Create progress record before state change (persistence deferred)
+        _progress_record = TaskProgressRecord(
             task_id=task_id,
             status=task.status,
             completed_work=completed_work,
