@@ -491,10 +491,7 @@ class COHHandlers:
             checkpoint,
         )
 
-        if (
-            archive_pointer is None
-            and checkpoint.archive_status.value == "degraded"
-        ):
+        if archive_pointer is None and checkpoint.archive_status.value == "degraded":
             # Archive write failed - emit non-blocking warning (I-12)
             archive_warning = (
                 "\n\nWarning: Archive record was not saved. "
