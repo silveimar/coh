@@ -992,6 +992,8 @@ Writes failed: {integration.writes_failed}
         """
         from coh_application.foreground_service import ForegroundService
         from coh_prose import ExecutionForeground, ProseRenderer
+        from execution_core.domain.commands import ConcurrencyError
+        from execution_core.state_machine.lifecycle import TransitionError
 
         session_uuid = UUID(session_id)
 
@@ -1016,10 +1018,15 @@ Writes failed: {integration.writes_failed}
                     }
                 ]
 
+            # Set session.current_spec before any transitions
+            session.current_spec = spec
+
             # If already EXECUTE, return current foreground
             if session.lifecycle_state == LifecycleState.EXECUTE:
                 fg_service = ForegroundService(uow)
-                foreground = fg_service.calculate_foreground(session_uuid, goal=spec.what)
+                foreground = fg_service.calculate_foreground(
+                    session_uuid, goal=spec.what
+                )
 
                 renderer = ProseRenderer()
                 prose_fg = ExecutionForeground(
@@ -1040,7 +1047,9 @@ Writes failed: {integration.writes_failed}
                         else None
                     ),
                     now_energy=(
-                        foreground.now_task.energy.value if foreground.now_task else None
+                        foreground.now_task.energy.value
+                        if foreground.now_task
+                        else None
                     ),
                     now_friction=(
                         foreground.now_task.activation_friction.value
@@ -1075,8 +1084,8 @@ Writes failed: {integration.writes_failed}
                     {
                         "type": "text",
                         "text": (
-                            f"Cannot execute from {session.lifecycle_state.value} state. "
-                            f"Must be in PLAN state."
+                            f"Cannot execute from {session.lifecycle_state.value} "
+                            f"state. Must be in PLAN state."
                         ),
                     }
                 ]
@@ -1098,8 +1107,8 @@ Writes failed: {integration.writes_failed}
                 session = self.state_machine.transition_to_execute(
                     session, command, tasks
                 )
-            except Exception as e:
-                # T6 failed: session stays PLAN
+            except (TransitionError, ConcurrencyError) as e:
+                # T6 failed: session stays PLAN (do not persist)
                 return [
                     {
                         "type": "text",
@@ -1173,9 +1182,11 @@ Writes failed: {integration.writes_failed}
         T8: VERIFY → EXECUTE (failed verification)
         """
         from coh_prose import ProseRenderer, VerificationResult
+        from execution_core.domain.commands import ConcurrencyError
         from execution_core.domain.enums import EvidenceAuthority, EvidenceResult
         from execution_core.domain.evidence import Evidence
         from execution_core.policies.completion_policy import CompletionViolation
+        from execution_core.state_machine.lifecycle import TransitionError
 
         session_uuid = UUID(session_id)
 
@@ -1200,6 +1211,9 @@ Writes failed: {integration.writes_failed}
                     }
                 ]
 
+            # Set session.current_spec before any transitions
+            session.current_spec = spec
+
             # T7: EXECUTE → VERIFY
             if session.lifecycle_state == LifecycleState.EXECUTE:
                 expected_version = session.version
@@ -1214,7 +1228,7 @@ Writes failed: {integration.writes_failed}
                     session = self.state_machine.transition_to_verify(session, command)
                     uow.sessions.update(session, expected_version)
                     uow.commit()
-                except Exception as e:
+                except (TransitionError, ConcurrencyError) as e:
                     return [
                         {
                             "type": "text",
@@ -1227,8 +1241,8 @@ Writes failed: {integration.writes_failed}
                     {
                         "type": "text",
                         "text": (
-                            f"Cannot verify from {session.lifecycle_state.value} state. "
-                            f"Must be in EXECUTE or VERIFY state."
+                            f"Cannot verify from {session.lifecycle_state.value} "
+                            f"state. Must be in EXECUTE or VERIFY state."
                         ),
                     }
                 ]
@@ -1238,10 +1252,11 @@ Writes failed: {integration.writes_failed}
         with SqlAlchemyUnitOfWork(self.session_factory) as uow:
             session = uow.sessions.get(session_uuid)
 
-            # Reload current_spec
+            # Reload current_spec and set on session
             spec_gate = SpecGateService(uow)
             spec_status = spec_gate.get_spec_status(session_uuid)
             spec = uow.specifications.get(UUID(spec_status["spec_id"]))
+            session.current_spec = spec
 
             for ev_data in evidence_list:
                 # Find criterion by text match
@@ -1275,10 +1290,11 @@ Writes failed: {integration.writes_failed}
         with SqlAlchemyUnitOfWork(self.session_factory) as uow:
             session = uow.sessions.get(session_uuid)
 
-            # Reload current_spec
+            # Reload current_spec and set on session before T9
             spec_gate = SpecGateService(uow)
             spec_status = spec_gate.get_spec_status(session_uuid)
             spec = uow.specifications.get(UUID(spec_status["spec_id"]))
+            session.current_spec = spec
 
             expected_version = session.version
 
@@ -1375,7 +1391,10 @@ Writes failed: {integration.writes_failed}
                 return [
                     {
                         "type": "text",
-                        "text": f"Verification failed. Transition: VERIFY → EXECUTE\n\n{rendered}",
+                        "text": (
+                            f"Verification failed. Transition: VERIFY → EXECUTE\n\n"
+                            f"{rendered}"
+                        ),
                     }
                 ]
 
