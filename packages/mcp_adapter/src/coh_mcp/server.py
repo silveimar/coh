@@ -93,8 +93,32 @@ def create_server(project_root: Path | None = None) -> Server:
                 },
             ),
             Tool(
+                name="propose_spec",
+                description=(
+                    "Propose specification via SpecGateService "
+                    "(read-only, always permitted)"
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "session_id": {"type": "string"},
+                        "what": {"type": "string"},
+                        "why": {"type": "string"},
+                        "deliverable": {"type": "string"},
+                        "done_when": {"type": "array", "items": {"type": "string"}},
+                    },
+                    "required": [
+                        "session_id",
+                        "what",
+                        "why",
+                        "deliverable",
+                        "done_when",
+                    ],
+                },
+            ),
+            Tool(
                 name="confirm_spec",
-                description="User confirms or corrects spec proposal",
+                description="User confirms or corrects spec proposal (I-02 gate)",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -103,6 +127,67 @@ def create_server(project_root: Path | None = None) -> Server:
                         "corrections": {"type": "object"},
                     },
                     "required": ["session_id", "confirmed"],
+                },
+            ),
+            Tool(
+                name="get_spec_status",
+                description="Get specification status (read-only, always permitted)",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "session_id": {"type": "string"},
+                    },
+                    "required": ["session_id"],
+                },
+            ),
+            Tool(
+                name="get_foreground",
+                description="Get foreground (I-01: NOW + ≤2 NEXT with metadata)",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "session_id": {"type": "string"},
+                    },
+                    "required": ["session_id"],
+                },
+            ),
+            Tool(
+                name="complete_now",
+                description="Complete NOW task (I-05, I-01)",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "session_id": {"type": "string"},
+                        "task_id": {"type": "string"},
+                        "completion_notes": {"type": "string"},
+                    },
+                    "required": ["session_id", "task_id"],
+                },
+            ),
+            Tool(
+                name="block_now",
+                description="Block NOW task (I-05, I-01)",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "session_id": {"type": "string"},
+                        "task_id": {"type": "string"},
+                        "reason": {"type": "string"},
+                    },
+                    "required": ["session_id", "task_id", "reason"],
+                },
+            ),
+            Tool(
+                name="park_task",
+                description="Park task without changing NOW (I-10)",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "session_id": {"type": "string"},
+                        "task_id": {"type": "string"},
+                        "reason": {"type": "string"},
+                    },
+                    "required": ["session_id", "task_id", "reason"],
                 },
             ),
             Tool(
@@ -156,8 +241,20 @@ def create_server(project_root: Path | None = None) -> Server:
                 return await handlers.inspect_repository(**arguments)
             elif name == "specify_work":
                 return await handlers.specify_work(**arguments)
+            elif name == "propose_spec":
+                return await handlers.propose_spec(**arguments)
             elif name == "confirm_spec":
                 return await handlers.confirm_spec(**arguments)
+            elif name == "get_spec_status":
+                return await handlers.get_spec_status(**arguments)
+            elif name == "get_foreground":
+                return await handlers.get_foreground(**arguments)
+            elif name == "complete_now":
+                return await handlers.complete_now(**arguments)
+            elif name == "block_now":
+                return await handlers.block_now(**arguments)
+            elif name == "park_task":
+                return await handlers.park_task(**arguments)
             elif name == "create_checkpoint":
                 return await handlers.create_checkpoint(**arguments)
             elif name == "recover_session":

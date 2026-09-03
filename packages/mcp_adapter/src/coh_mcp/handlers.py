@@ -5,17 +5,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
+from coh_application import ForegroundService, SpecGateService
 from coh_archive import ArchiveConfig, ArchiveService
 from execution_core.domain.checkpoint import Checkpoint
 from execution_core.domain.commands import Command
 from execution_core.domain.enums import (
-    Clarity,
     LifecycleState,
     Readiness,
     SessionIntent,
 )
 from execution_core.domain.session import ExecutionSession
-from execution_core.domain.specification import DoneWhenCriterion, Specification
 from execution_core.state_machine.lifecycle import StateMachine
 from persistence.infrastructure.database import (
     create_engine,
@@ -138,8 +137,10 @@ class COHHandlers:
         """
         Specify work: derive and propose specification.
 
-        Transitions INSPECT → SPECIFY → CONFIRM (T2 + T3).
+        Uses SpecGateService.propose_spec (read-only, always permitted).
+        Returns computed clarity/readiness + blockers.
         T2 findings_archived only True if archive write succeeded (fail closed).
+        Persists spec and transitions INSPECT → SPECIFY → CONFIRM (T2 + T3).
         Uses prose renderer to ensure P-01 (inspection findings before spec block).
         """
         from coh_prose import ProseRenderer, SpecProposal
@@ -151,9 +152,6 @@ class COHHandlers:
             session = uow.sessions.get(session_uuid)
             if not session:
                 return [{"type": "text", "text": f"Session not found: {session_id}"}]
-
-            # Capture expected_version before transitions
-            expected_version = session.version
 
             checkpoint = uow.checkpoints.get_latest_for_session(session_uuid)
 
@@ -176,22 +174,6 @@ class COHHandlers:
             # No findings to archive = success
             findings_archived = True
 
-        done_when_criteria = [
-            DoneWhenCriterion(text=criterion) for criterion in done_when
-        ]
-
-        spec = Specification(
-            id=uuid4(),
-            session_id=session_uuid,
-            revision=1,
-            what=what,
-            why=why,
-            deliverable=deliverable,
-            done_when=done_when_criteria,
-            clarity=Clarity.READY,
-            readiness=Readiness.READY,
-        )
-
         # T2: INSPECT → SPECIFY (findings_archived only True if archive succeeded)
         command = Command(
             idempotency_key=f"specify-{session_uuid}-{datetime.now(UTC).isoformat()}",
@@ -202,31 +184,37 @@ class COHHandlers:
             session, findings_archived=findings_archived, command=command
         )
 
-        # T3: SPECIFY → CONFIRM
-        command = Command(
-            idempotency_key=f"confirm-{session_uuid}-{datetime.now(UTC).isoformat()}",
-            expected_version=session.version,
-            source="user",
-        )
-        session = self.state_machine.transition_to_confirm(session, spec, command)
-
-        # Persist spec first (FK parent for session.current_spec_id)
-        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
-            uow.specifications.add(spec)
-            # UoW __exit__ commits on success
-
-        # Now link spec to session and persist session
-        session.current_spec = spec
+        # Persist session after T2
+        expected_version = session.version - 1
         with SqlAlchemyUnitOfWork(self.session_factory) as uow:
             uow.sessions.update(session, expected_version)
-            # UoW __exit__ commits on success
 
-        # Update checkpoint if exists (checkpoint updates are not currently supported)
-        # Checkpoints are immutable except for archive_references
-        if checkpoint:
-            checkpoint.lifecycle_state = session.lifecycle_state
-            checkpoint.spec_id = spec.id
-            checkpoint.spec_revision = spec.revision
+        # Propose spec via SpecGateService (computes clarity/readiness)
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            spec_gate = SpecGateService(uow)
+            spec = spec_gate.propose_spec(
+                session_id=session_uuid,
+                what=what,
+                why=why,
+                deliverable=deliverable,
+                done_when=done_when,
+            )
+
+        # Persist spec
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            uow.specifications.add(spec)
+
+        # T3: SPECIFY → CONFIRM (link spec to session)
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            session = uow.sessions.get(session_uuid)
+            command = Command(
+                idempotency_key=f"confirm-{session_uuid}-{datetime.now(UTC).isoformat()}",
+                expected_version=session.version,
+                source="user",
+            )
+            session = self.state_machine.transition_to_confirm(session, spec, command)
+            expected_version = session.version - 1
+            uow.sessions.update(session, expected_version)
 
         # Render spec proposal with P-01
         renderer = ProseRenderer()
@@ -261,48 +249,116 @@ class COHHandlers:
     async def confirm_spec(
         self, session_id: str, confirmed: bool, corrections: dict | None = None
     ) -> list[dict]:
-        """Confirm or correct specification (T4/T5)."""
+        """
+        Confirm or correct specification (T4/T5).
+
+        I-02: check_mutation_allowed first. If blocked, return error payload.
+        If ready and confirmed=true, SpecGateService.confirm_spec + T4.
+        If confirmed=false, propose revised spec (T5).
+        """
         session_uuid = UUID(session_id)
+
+        # I-02: Check readiness gate before mutation
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            spec_gate = SpecGateService(uow)
+            allowed, state, blockers = spec_gate.check_mutation_allowed(session_uuid)
+
+        if not allowed:
+            # I-02: Blocked confirmation returns structured error, no T4
+            blockers_text = "\n".join(f"- {b}" for b in blockers)
+            return [
+                {
+                    "type": "text",
+                    "text": (
+                        f"Cannot confirm specification: "
+                        f"readiness is {state.upper()}\n\n"
+                        f"Blockers:\n{blockers_text}\n\n"
+                        "Read-only inspection remains permitted."
+                    ),
+                }
+            ]
 
         with SqlAlchemyUnitOfWork(self.session_factory) as uow:
             session = uow.sessions.get(session_uuid)
             if not session:
                 return [{"type": "text", "text": f"Session not found: {session_id}"}]
 
-            # Load current_spec by querying ORM model for current_spec_id
-            from sqlalchemy import select
-
-            from persistence.infrastructure.models import ExecutionSessionModel
-
-            stmt = select(ExecutionSessionModel).where(
-                ExecutionSessionModel.id == session_uuid
-            )
-            session_model = uow._session.scalars(stmt).one_or_none()
-            if session_model and session_model.current_spec_id:
-                session.current_spec = uow.specifications.get(
-                    session_model.current_spec_id
-                )
-
-            # Capture expected_version before transitions
-            expected_version = session.version
+            # Load current_spec via SpecGateService
+            spec_gate = SpecGateService(uow)
+            spec_status = spec_gate.get_spec_status(session_uuid)
+            if "error" in spec_status:
+                return [{"type": "text", "text": spec_status["error"]}]
 
         if confirmed:
-            # T4: CONFIRM → PLAN (I-02 readiness + I-08 confirmation)
-            command = Command(
-                idempotency_key=f"plan-{session_uuid}-{datetime.now(UTC).isoformat()}",
-                expected_version=session.version,
-                source="user",
-            )
-            session = self.state_machine.transition_to_plan(
-                session,
-                user_confirmed=True,
-                command=command,
-                change_scope="small",  # MCP adapters start with small scope
-            )
-
+            # Transition SPECIFY → CONFIRM (T3) if not already in CONFIRM
             with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                session = uow.sessions.get(session_uuid)
+
+                # Load spec to transition with
+                from sqlalchemy import select
+
+                from persistence.infrastructure.models import ExecutionSessionModel
+
+                stmt = select(ExecutionSessionModel).where(
+                    ExecutionSessionModel.id == session_uuid
+                )
+                session_model = uow._session.scalars(stmt).one_or_none()
+                if session_model and session_model.current_spec_id:
+                    spec = uow.specifications.get(session_model.current_spec_id)
+                else:
+                    return [
+                        {
+                            "type": "text",
+                            "text": "No specification to confirm",
+                        }
+                    ]
+
+                # T3: SPECIFY → CONFIRM (if not already in CONFIRM)
+                if session.lifecycle_state == LifecycleState.SPECIFY:
+                    command = Command(
+                        idempotency_key=f"confirm-{session_uuid}-{datetime.now(UTC).isoformat()}",
+                        expected_version=session.version,
+                        source="user",
+                    )
+                    session = self.state_machine.transition_to_confirm(
+                        session, spec, command
+                    )
+
+                    expected_version = session.version - 1
+                    uow.sessions.update(session, expected_version)
+
+            # T4: CONFIRM → PLAN (I-02 readiness + I-08 confirmation)
+            with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                session = uow.sessions.get(session_uuid)
+
+                # Load spec for session
+                from sqlalchemy import select
+
+                from persistence.infrastructure.models import ExecutionSessionModel
+
+                stmt = select(ExecutionSessionModel).where(
+                    ExecutionSessionModel.id == session_uuid
+                )
+                session_model = uow._session.scalars(stmt).one_or_none()
+                if session_model and session_model.current_spec_id:
+                    session.current_spec = uow.specifications.get(
+                        session_model.current_spec_id
+                    )
+
+                command = Command(
+                    idempotency_key=f"plan-{session_uuid}-{datetime.now(UTC).isoformat()}",
+                    expected_version=session.version,
+                    source="user",
+                )
+                session = self.state_machine.transition_to_plan(
+                    session,
+                    user_confirmed=True,
+                    command=command,
+                    change_scope="small",
+                )
+
+                expected_version = session.version - 1
                 uow.sessions.update(session, expected_version)
-                # UoW __exit__ commits on success
 
             return [
                 {
@@ -315,20 +371,40 @@ class COHHandlers:
             ]
         else:
             # T5: CONFIRM → SPECIFY (user correction)
-            if corrections and session.current_spec:
-                command = Command(
-                    idempotency_key=f"correct-{session_uuid}-{datetime.now(UTC).isoformat()}",
-                    expected_version=session.version,
-                    source="user",
-                )
-                corrected_spec = session.current_spec.model_copy(update=corrections)
-                session = self.state_machine.correct_spec(
-                    session, corrected_spec, command
-                )
-
+            if corrections:
                 with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                    session = uow.sessions.get(session_uuid)
+
+                    from sqlalchemy import select
+
+                    from persistence.infrastructure.models import ExecutionSessionModel
+
+                    stmt = select(ExecutionSessionModel).where(
+                        ExecutionSessionModel.id == session_uuid
+                    )
+                    session_model = uow._session.scalars(stmt).one_or_none()
+                    if session_model and session_model.current_spec_id:
+                        spec = uow.specifications.get(session_model.current_spec_id)
+                    else:
+                        return [
+                            {
+                                "type": "text",
+                                "text": "No specification to correct",
+                            }
+                        ]
+
+                    command = Command(
+                        idempotency_key=f"correct-{session_uuid}-{datetime.now(UTC).isoformat()}",
+                        expected_version=session.version,
+                        source="user",
+                    )
+                    corrected_spec = spec.model_copy(update=corrections)
+                    session = self.state_machine.correct_spec(
+                        session, corrected_spec, command
+                    )
+
+                    expected_version = session.version - 1
                     uow.sessions.update(session, expected_version)
-                    # UoW __exit__ commits on success
 
             return [
                 {
@@ -506,6 +582,278 @@ Writes failed: {integration.writes_failed}
             {
                 "type": "text",
                 "text": status_text,
+            }
+        ]
+
+    async def propose_spec(
+        self,
+        session_id: str,
+        what: str,
+        why: str,
+        deliverable: str,
+        done_when: list[str],
+    ) -> list[dict]:
+        """
+        Propose specification via SpecGateService (read-only, always permitted).
+
+        Returns computed clarity/readiness + blockers.
+        Does not persist or transition state.
+        """
+        session_uuid = UUID(session_id)
+
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            spec_gate = SpecGateService(uow)
+            try:
+                spec = spec_gate.propose_spec(
+                    session_id=session_uuid,
+                    what=what,
+                    why=why,
+                    deliverable=deliverable,
+                    done_when=done_when,
+                )
+            except ValueError as e:
+                return [{"type": "text", "text": str(e)}]
+
+        # Get blockers if not ready
+        blockers_text = ""
+        if spec.readiness == Readiness.BLOCKED:
+            with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                spec_gate = SpecGateService(uow)
+                blockers = spec_gate._get_readiness_blockers(spec)
+                blockers_list = "\n".join(f"- {b}" for b in blockers)
+                blockers_text = f"\n\nBlockers:\n{blockers_list}"
+
+        return [
+            {
+                "type": "text",
+                "text": (
+                    f"Spec proposal (not persisted):\n\n"
+                    f"WHAT: {spec.what}\n"
+                    f"WHY: {spec.why}\n"
+                    f"DELIVERABLE: {spec.deliverable}\n"
+                    "DONE WHEN:\n"
+                    + "\n".join(f"- {d.text}" for d in spec.done_when)
+                    + "\n\n"
+                    f"Clarity: {spec.clarity.value}\n"
+                    f"Readiness: {spec.readiness.value}"
+                    f"{blockers_text}"
+                ),
+            }
+        ]
+
+    async def get_spec_status(self, session_id: str) -> list[dict]:
+        """
+        Get specification status (read-only, always permitted per I-02).
+
+        Returns clarity, readiness, blockers.
+        """
+        session_uuid = UUID(session_id)
+
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            spec_gate = SpecGateService(uow)
+            status = spec_gate.get_spec_status(session_uuid)
+
+        if "error" in status:
+            return [{"type": "text", "text": status["error"]}]
+
+        blockers_text = ""
+        if status.get("blockers"):
+            blockers_text = "\n\nBlockers:\n" + "\n".join(
+                f"- {b}" for b in status["blockers"]
+            )
+
+        return [
+            {
+                "type": "text",
+                "text": (
+                    f"Specification Status\n\n"
+                    f"Spec ID: {status.get('spec_id', 'N/A')}\n"
+                    f"Revision: {status.get('revision', 'N/A')}\n"
+                    f"Clarity: {status.get('clarity', 'none')}\n"
+                    f"Readiness: {status.get('readiness', 'blocked')}\n"
+                    f"WHAT: {status.get('what', 'N/A')}\n"
+                    f"Done when criteria: {status.get('done_when_count', 0)}"
+                    f"{blockers_text}"
+                ),
+            }
+        ]
+
+    async def get_foreground(self, session_id: str) -> list[dict]:
+        """
+        Get foreground (I-01: NOW + ≤2 NEXT with metadata).
+
+        Uses ForegroundService.calculate_foreground.
+        Returns now_task, next_1_task, next_2_task with full metadata.
+        """
+        from coh_prose import ExecutionForeground, ProseRenderer
+
+        session_uuid = UUID(session_id)
+
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            foreground_service = ForegroundService(uow)
+            try:
+                foreground = foreground_service.calculate_foreground(session_uuid)
+            except ValueError as e:
+                return [{"type": "text", "text": str(e)}]
+
+        # Render with P-06 (foreground uses prospective framing)
+        renderer = ProseRenderer()
+
+        # Prepare foreground for rendering (I-01 metadata)
+        if foreground.now_task:
+            now_text = foreground.now_task.action_literal or "No action"
+            now_done_when = foreground.now_task.done_when_condition or ""
+            now_minutes = foreground.now_task.estimated_minutes
+            now_energy = foreground.now_task.energy
+            now_friction = foreground.now_task.activation_friction
+        else:
+            now_text = "No active task"
+            now_done_when = ""
+            now_minutes = None
+            now_energy = None
+            now_friction = None
+
+        foreground_view = ExecutionForeground(
+            goal=foreground.goal,
+            now=now_text,
+            now_done_when=now_done_when,
+            now_minutes=now_minutes,
+            now_energy=now_energy,
+            now_friction=now_friction,
+            next_1=(
+                foreground.next_1_task.action_literal
+                if foreground.next_1_task
+                else None
+            ),
+            next_2=(
+                foreground.next_2_task.action_literal
+                if foreground.next_2_task
+                else None
+            ),
+            parked_count=foreground.parked_count,
+        )
+
+        rendered = renderer.render_execution_foreground(foreground_view)
+
+        return [
+            {
+                "type": "text",
+                "text": rendered,
+            }
+        ]
+
+    async def complete_now(
+        self, session_id: str, task_id: str, completion_notes: str | None = None
+    ) -> list[dict]:
+        """
+        Complete NOW task (I-05, I-01).
+
+        Calls ForegroundService.complete_now_task.
+        Returns new foreground after promotion.
+        """
+        session_uuid = UUID(session_id)
+        task_uuid = UUID(task_id)
+
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            foreground_service = ForegroundService(uow)
+            try:
+                new_foreground = foreground_service.complete_now_task(
+                    session_uuid, task_uuid, completion_notes
+                )
+            except ValueError as e:
+                return [{"type": "text", "text": f"Error: {e}"}]
+
+        now_literal = (
+            new_foreground.now_task.action_literal
+            if new_foreground.now_task
+            else "None"
+        )
+        next_literal = (
+            new_foreground.next_1_task.action_literal
+            if new_foreground.next_1_task
+            else "None"
+        )
+
+        return [
+            {
+                "type": "text",
+                "text": (
+                    f"Task {task_id} completed.\n\n"
+                    f"New foreground:\n"
+                    f"NOW: {now_literal}\n"
+                    f"NEXT: {next_literal}"
+                ),
+            }
+        ]
+
+    async def block_now(self, session_id: str, task_id: str, reason: str) -> list[dict]:
+        """
+        Block NOW task (I-05, I-01).
+
+        Calls ForegroundService.block_now_task.
+        Returns new foreground after recalculation.
+        """
+        session_uuid = UUID(session_id)
+        task_uuid = UUID(task_id)
+
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            foreground_service = ForegroundService(uow)
+            try:
+                new_foreground = foreground_service.block_now_task(
+                    session_uuid, task_uuid, reason
+                )
+            except ValueError as e:
+                return [{"type": "text", "text": f"Error: {e}"}]
+
+        now_literal = (
+            new_foreground.now_task.action_literal
+            if new_foreground.now_task
+            else "None"
+        )
+        next_literal = (
+            new_foreground.next_1_task.action_literal
+            if new_foreground.next_1_task
+            else "None"
+        )
+
+        return [
+            {
+                "type": "text",
+                "text": (
+                    f"Task {task_id} blocked: {reason}\n\n"
+                    f"New foreground:\n"
+                    f"NOW: {now_literal}\n"
+                    f"NEXT: {next_literal}"
+                ),
+            }
+        ]
+
+    async def park_task(self, session_id: str, task_id: str, reason: str) -> list[dict]:
+        """
+        Park task without changing NOW (I-10).
+
+        Calls ForegroundService.park_task.
+        Returns updated foreground.
+        """
+        session_uuid = UUID(session_id)
+        task_uuid = UUID(task_id)
+
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            foreground_service = ForegroundService(uow)
+            try:
+                new_foreground = foreground_service.park_task(
+                    session_uuid, task_uuid, reason
+                )
+            except ValueError as e:
+                return [{"type": "text", "text": f"Error: {e}"}]
+
+        return [
+            {
+                "type": "text",
+                "text": (
+                    f"Task {task_id} parked: {reason}\n\n"
+                    f"Parked count: {new_foreground.parked_count}"
+                ),
             }
         ]
 
