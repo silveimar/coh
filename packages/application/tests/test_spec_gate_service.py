@@ -1,6 +1,5 @@
 """Tests for SpecGateService enforcing I-02 (readiness gate)."""
 
-
 import pytest
 from sqlalchemy.orm import sessionmaker
 
@@ -372,9 +371,7 @@ class TestSpecGateService:
         assert confirmed.revision == 1
 
         with uow:
-            revised = service.revise_spec(
-                session.id, confirmed.id, {"what": "Revised"}
-            )
+            revised = service.revise_spec(session.id, confirmed.id, {"what": "Revised"})
 
         assert revised.revision == 2
         assert revised.what == "Revised"
