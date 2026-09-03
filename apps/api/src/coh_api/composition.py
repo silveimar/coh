@@ -1,6 +1,5 @@
 """Service composition and dependency wiring."""
 
-import os
 from pathlib import Path
 
 from coh_application import ForegroundService, SpecGateService
@@ -48,5 +47,7 @@ def init_services(database_url: str | None = None) -> None:
 def get_container() -> ServiceContainer:
     """Get global service container."""
     if _container is None:
-        raise RuntimeError("Service container not initialized. Call init_services first.")
+        raise RuntimeError(
+            "Service container not initialized. Call init_services first."
+        )
     return _container

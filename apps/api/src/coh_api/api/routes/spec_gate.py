@@ -82,13 +82,15 @@ def propose_spec(request: ProposeSpecRequest) -> SpecResponse:
                 blockers=blockers,
             )
         except ValueError as e:
-            raise HTTPException(
+            raise HTTPException(  # noqa: B904
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "session_not_found", "message": str(e)},
             )
 
 
-@router.post("/confirm", response_model=SpecResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/confirm", response_model=SpecResponse, status_code=status.HTTP_201_CREATED
+)
 def confirm_spec(request: ConfirmSpecRequest) -> SpecResponse:
     """
     Confirm specification and persist it (T4).
@@ -104,13 +106,16 @@ def confirm_spec(request: ConfirmSpecRequest) -> SpecResponse:
         # I-02: Check mutation allowed before proceeding
         allowed, state, blockers = service.check_mutation_allowed(request.session_id)
         if not allowed:
+            blockers_text = ", ".join(blockers)
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail={
                     "error_code": "readiness_blocked",
-                    "message": f"Material mutation rejected: readiness is {state.upper()}. "
-                    f"Blockers: {', '.join(blockers)}. "
-                    f"Read-only inspection remains permitted.",
+                    "message": (
+                        f"Material mutation rejected: readiness is "
+                        f"{state.upper()}. Blockers: {blockers_text}. "
+                        f"Read-only inspection remains permitted."
+                    ),
                     "blockers": blockers,
                 },
             )
@@ -174,11 +179,11 @@ def confirm_spec(request: ConfirmSpecRequest) -> SpecResponse:
         except ValueError as e:
             error_msg = str(e)
             if "readiness=BLOCKED" in error_msg or "Cannot confirm" in error_msg:
-                raise HTTPException(
+                raise HTTPException(  # noqa: B904
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail={"error_code": "readiness_blocked", "message": error_msg},
                 )
-            raise HTTPException(
+            raise HTTPException(  # noqa: B904
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "session_not_found", "message": error_msg},
             )
@@ -220,7 +225,7 @@ def revise_spec(request: ReviseSpecRequest) -> SpecResponse:
                 blockers=blockers,
             )
         except ValueError as e:
-            raise HTTPException(
+            raise HTTPException(  # noqa: B904
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "not_found", "message": str(e)},
             )

@@ -7,7 +7,6 @@ from sqlalchemy.orm import sessionmaker
 from coh_api.composition import ServiceContainer
 from coh_api.main import create_app
 from execution_core.domain.enums import (
-    Energy,
     ForegroundPosition,
     LifecycleState,
     SessionIntent,
@@ -31,7 +30,7 @@ def test_db():
 @pytest.fixture
 def service_container(test_db):
     """Create service container with test database."""
-    session_factory = sessionmaker(bind=test_db)
+    sessionmaker(bind=test_db)
 
     class TestContainer(ServiceContainer):
         def __init__(self, engine):
@@ -196,7 +195,9 @@ class TestI02ReadinessGate:
 class TestI01ForegroundConstraints:
     """Test I-01: At most one NOW and two NEXT with required metadata."""
 
-    def test_foreground_enforces_now_metadata_requirements(self, client, session, service_container):
+    def test_foreground_enforces_now_metadata_requirements(
+        self, client, session, service_container
+    ):
         """Foreground validates NOW task has required metadata (I-01)."""
         test_session, test_spec = session
 
@@ -288,7 +289,9 @@ class TestDiagnosisFreeErrors:
         test_session, _ = session
 
         # Test with invalid session ID
-        response = client.get("/api/v1/spec-gate/status/00000000-0000-0000-0000-000000000000")
+        response = client.get(
+            "/api/v1/spec-gate/status/00000000-0000-0000-0000-000000000000"
+        )
 
         assert response.status_code == 404
         data = response.json()

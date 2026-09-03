@@ -79,7 +79,7 @@ def get_foreground(session_id: UUID, goal: str | None = None) -> ForegroundRespo
 
             return _map_foreground_to_response(foreground)
         except ValueError as e:
-            raise HTTPException(
+            raise HTTPException(  # noqa: B904
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "not_found", "message": str(e)},
             )
@@ -120,11 +120,11 @@ def complete_now_task(request: CompleteNowTaskRequest) -> ForegroundResponse:
         except ValueError as e:
             error_msg = str(e)
             if "not the NOW task" in error_msg:
-                raise HTTPException(
+                raise HTTPException(  # noqa: B904
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail={"error_code": "not_now_task", "message": error_msg},
                 )
-            raise HTTPException(
+            raise HTTPException(  # noqa: B904
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "not_found", "message": error_msg},
             )
@@ -164,11 +164,11 @@ def block_now_task(request: BlockNowTaskRequest) -> ForegroundResponse:
         except ValueError as e:
             error_msg = str(e)
             if "not the NOW task" in error_msg:
-                raise HTTPException(
+                raise HTTPException(  # noqa: B904
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail={"error_code": "not_now_task", "message": error_msg},
                 )
-            raise HTTPException(
+            raise HTTPException(  # noqa: B904
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "not_found", "message": error_msg},
             )
@@ -206,7 +206,7 @@ def park_task(request: ParkTaskRequest) -> ForegroundResponse:
 
             return _map_foreground_to_response(foreground)
         except ValueError as e:
-            raise HTTPException(
+            raise HTTPException(  # noqa: B904
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "not_found", "message": str(e)},
             )
@@ -248,11 +248,11 @@ def interrupt_now_task(request: InterruptNowTaskRequest) -> ForegroundResponse:
         except ValueError as e:
             error_msg = str(e)
             if "not the NOW task" in error_msg:
-                raise HTTPException(
+                raise HTTPException(  # noqa: B904
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail={"error_code": "not_now_task", "message": error_msg},
                 )
-            raise HTTPException(
+            raise HTTPException(  # noqa: B904
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "not_found", "message": error_msg},
             )

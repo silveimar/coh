@@ -7,7 +7,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from coh_api.api.routes import foreground, spec_gate
-from coh_api.api.schemas.common import ErrorResponse
 from coh_api.composition import init_services
 
 
@@ -24,7 +23,10 @@ def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
     app = FastAPI(
         title="COH API",
-        description="Cognitive Operating Harness - Local-first execution layer for solo developers",
+        description=(
+            "Cognitive Operating Harness - "
+            "Local-first execution layer for solo developers"
+        ),
         version="0.1.0",
         lifespan=lifespan,
         docs_url="/docs",
