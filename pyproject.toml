@@ -14,6 +14,7 @@ persistence = { workspace = true }
 coh-archive = { workspace = true }
 prose = { workspace = true }
 mcp-adapter = { workspace = true }
+application = { workspace = true }
 
 [tool.ruff]
 line-length = 88
@@ -32,7 +33,7 @@ select = [
 ignore = []
 
 [tool.ruff.lint.isort]
-known-first-party = ["execution_core", "coh_archive", "persistence", "coh_prose", "coh_mcp"]
+known-first-party = ["execution_core", "coh_archive", "persistence", "coh_prose", "coh_mcp", "coh_application"]
 
 [tool.pyright]
 pythonVersion = "3.12"
