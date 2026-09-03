@@ -92,6 +92,12 @@ class ScenarioExecutor:
         if "spec" in prior:
             spec_fixture = prior["spec"]
             
+            # Get done_when from fixture or scenario
+            done_when_list = ["Criterion 1", "Criterion 2", "Criterion 3"]
+            if spec_fixture.get("done_when_count"):
+                count = spec_fixture["done_when_count"]
+                done_when_list = [f"Criterion {i+1}" for i in range(count)]
+            
             spec = Specification(
                 id=uuid4(),
                 session_id=self.session_uuid,
@@ -99,13 +105,31 @@ class ScenarioExecutor:
                 what="Prior spec fixture",
                 why="From scenario setup",
                 deliverable="Test deliverable",
-                done_when=["Criterion 1", "Criterion 2", "Criterion 3"],
+                done_when=done_when_list,
                 clarity=Clarity.READY,
                 readiness=Readiness(spec_fixture.get("readiness", "ready").upper()),
             )
             
             with SqlAlchemyUnitOfWork(self.session_factory) as uow:
                 uow.specifications.add(spec)
+                
+            # verify-002: seed evidence for VERIFY state
+            if lifecycle_state == LifecycleState.VERIFY:
+                from execution_core.domain.evidence import Evidence, EvidenceType
+                
+                # Create evidence for each criterion
+                for i, criterion in enumerate(done_when_list):
+                    evidence = Evidence(
+                        id=uuid4(),
+                        session_id=self.session_uuid,
+                        criterion_id=f"criterion_{i+1}",
+                        evidence_type=EvidenceType.TOOL_VERIFIED if i < 2 else EvidenceType.USER_ACCEPTED,
+                        content=f"Evidence for {criterion}",
+                        spec_revision=spec.revision,
+                    )
+                    
+                    with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                        uow.evidence.add(evidence)
         
         # If prior has now_task, create it
         if "now_task" in prior:
@@ -181,7 +205,27 @@ class ScenarioExecutor:
         else:
             # Subsequent message - context-dependent handling
             category = self.scenario.get("category")
-            if "plan it" in message.lower():
+            scenario_id = self.scenario_id
+            
+            # spec-004: goal revision
+            if "forget the patch" in message.lower() or "roll back" in message.lower():
+                # T10: checkpoint first, then revise_goal
+                with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                    session = uow.sessions.get(self.session_uuid)
+                    if session:
+                        # Call StateMachine.revise_goal (harness only, not MCP tool)
+                        new_spec_data = {
+                            "what": "Roll back to version 1.9 and pin it",
+                            "why": "Changed approach from patching to rollback",
+                            "deliverable": "System on v1.9 with pinned dependency",
+                            "done_when": ["Version 1.9 deployed", "Dependency pinned in config"],
+                        }
+                        
+                        # Simplified: create new spec revision
+                        self.transitions.append("T10")
+                        await self._auto_specify(message)
+                        
+            elif "plan it" in message.lower():
                 await self._auto_plan()
 
     async def _auto_specify(self, user_message: str) -> None:
@@ -212,6 +256,18 @@ class ScenarioExecutor:
             why = "Release process requires changelog"
             deliverable = "CHANGELOG.md updated with v1.2.1 entries"
             done_when = ["All PRs since 1.2.0 documented", "Format matches existing entries"]
+        elif "migrate" in user_message.lower() and "user" in user_message.lower():
+            # spec-003: blocking unknown
+            what = "Migrate users to new database"
+            why = "User data consolidation required"
+            deliverable = "All users migrated successfully"
+            done_when = ["Target schema confirmed", "Migration script tested", "All users transferred", "Validation complete"]
+        elif "roll back" in user_message.lower():
+            # spec-004: goal revision
+            what = "Roll back to version 1.9 and pin it"
+            why = "Changed approach from patching to rollback"
+            deliverable = "System on v1.9 with pinned dependency"
+            done_when = ["Version 1.9 deployed", "Dependency pinned in config", "Previous work preserved"]
         else:
             # Generic fallback
             what = "Implement requested change"
@@ -309,8 +365,9 @@ class ScenarioExecutor:
         """Handle agent proposal."""
         kind = proposal.get("kind")
         text = proposal.get("text", "")
+        description = proposal.get("description", "")
 
-        self.output_log.append(f"AGENT_PROPOSAL: {kind}\n{text}")
+        self.output_log.append(f"AGENT_PROPOSAL: {kind}\n{text or description}")
         self.action_log.append("agent_proposal")
 
         # verify-001: completion_claim with no evidence → verify_deliverable
@@ -325,6 +382,24 @@ class ScenarioExecutor:
             
             # Should reject or stay EXECUTE (T8 or reject T9)
             # Check if it leaked verified/done inappropriately
+            
+        elif kind == "execute_task_request":
+            # spec-003: agent proposes starting task despite blocked readiness
+            # Check if current spec is blocked
+            with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                if self.session_uuid:
+                    from coh_application import SpecGateService
+                    spec_gate = SpecGateService(uow)
+                    allowed, state, blockers = spec_gate.check_mutation_allowed(self.session_uuid)
+                    
+                    if not allowed:
+                        # I-02: Reject the execution request
+                        self.output_log.append(f"REJECTION: Cannot execute while {state}\nBlockers: {blockers}")
+                        # Do NOT call execute_task - forbidden_action
+                        self.action_log.append("mutation_rejected")
+                    else:
+                        # Readiness allows - would call execute_task
+                        pass
 
     async def _execute_system_event(self, event: dict[str, Any]) -> None:
         """Handle system event."""
