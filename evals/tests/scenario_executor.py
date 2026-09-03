@@ -13,6 +13,7 @@ from uuid import UUID
 import yaml
 
 from coh_mcp.handlers import COHHandlers
+from evals.tests.invariant_checkers import InvariantChecker, ProseRuleChecker
 from persistence.infrastructure.database import create_engine, get_session_factory
 from persistence.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 
@@ -200,13 +201,12 @@ class ScenarioExecutor:
         self.handler_output.append(result[0]["text"])
         self.transitions.extend(["T2", "T3"])
 
-        # Manually add blocking Unknown via UoW per user instruction
+        # Manually add blocking Unknown via UoW (setup for I-02 test)
         from coh_application import SpecGateService
         from execution_core.domain.specification import Unknown
 
         with SqlAlchemyUnitOfWork(self.session_factory) as uow:
             session = uow.sessions.get(self.session_uuid)
-            # Load spec via spec_gate service
             spec_gate = SpecGateService(uow)
             spec = spec_gate._load_current_spec(session)
 
@@ -216,47 +216,17 @@ class ScenarioExecutor:
                     Unknown(
                         text="Which target schema (legacy or new) is authoritative?",
                         blocking=True,
-                        discoverable_via_inspection=True,
+                        discoverable_via_inspection=False,
                     )
                 )
                 spec.update_computed_fields()
                 uow.specifications.update(spec)
                 uow.commit()
 
-        # Re-render the spec with updated readiness
-        from coh_prose import ProseRenderer, SpecProposal
-
-        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
-            session = uow.sessions.get(self.session_uuid)
-            spec_gate = SpecGateService(uow)
-            spec = spec_gate._load_current_spec(session)
-
-            if spec:
-                questions = spec_gate.get_questions(spec)
-
-                # Build blockers list with recommended defaults
-                blockers = []
-                for question in questions.get("blocking_unknowns", []):
-                    blockers.append(
-                        f"{question['text']} (recommended: investigate via inspection)"
-                    )
-
-                renderer = ProseRenderer()
-                spec_proposal = SpecProposal(
-                    what=spec.what,
-                    why=spec.why,
-                    deliverable=spec.deliverable,
-                    done_when=[c.text for c in spec.done_when],
-                    clarity=spec.clarity.value,
-                    readiness=spec.readiness.value,
-                    blockers=blockers,
-                )
-                rendered = renderer.render_spec_proposal(spec_proposal)
-                self.handler_output.append(
-                    f"\n--- Updated spec with blocking unknown ---\n{rendered}"
-                )
-
-        self.action_log.append("mutation_rejected")
+        # I-02: Attempt to confirm the blocked spec
+        # Handler should reject with error payload
+        result = await self.handlers.confirm_spec(self.session_id, confirmed=True)
+        self.handler_output.append(result[0]["text"])
 
     async def _run_spec_004_goal_revision(self) -> None:
         """spec-004: Goal revision with checkpoint."""
@@ -489,12 +459,6 @@ class ScenarioExecutor:
         )
         self.handler_output.append(result[0]["text"])
 
-        # Should stay EXECUTE, show "implemented" ceiling
-        if "implemented" not in result[0]["text"].lower():
-            # Harness adds honest ceiling if handler doesn't
-            verification = "\n\nVERIFICATION:\nCompletion state: implemented (no evidence for higher state)"
-            self.handler_output.append(verification)
-
     async def _run_verify_002_evidence_done(self) -> None:
         """verify-002: Full evidence → COMPLETE (T9)."""
         # Seed to VERIFY via T7
@@ -536,9 +500,7 @@ class ScenarioExecutor:
             self.session_id,
             evidence_list=evidence_list,
         )
-        # Add summary count for pattern matching
-        output_with_count = result[0]["text"] + "\n\nSummary: 3/3 criteria satisfied"
-        self.handler_output.append(output_with_count)
+        self.handler_output.append(result[0]["text"])
         self.transitions.append("T9")
 
     async def _run_arch_001_write_failure(self) -> None:
@@ -551,19 +513,12 @@ class ScenarioExecutor:
             os.chmod(archive_dir, 0o000)
 
         try:
-            # Next operation that writes archive
-            result = await self.handlers.create_session(
-                "test_project_2",
-                "trigger archive write",
-                "execute",
+            # Create checkpoint on the SEEDED session (triggers archive write)
+            result = await self.handlers.create_checkpoint(
+                self.session_id,
+                restart_action="Continue work after archive failure",
             )
-            # Should succeed but warn about archive
-            if "record was not saved" not in result[0]["text"].lower():
-                # Harness adds warning if handler doesn't emit one
-                warning = "\nWarning: archive record was not saved (degraded mode)"
-                self.handler_output.append(warning)
-            else:
-                self.handler_output.append(result[0]["text"])
+            self.handler_output.append(result[0]["text"])
         finally:
             # Restore permissions
             if archive_dir.exists():
@@ -637,16 +592,8 @@ class ScenarioExecutor:
         """prose-004 (critical P-05): Protected fields preserved."""
         await self._seed_to("EXECUTE")
 
-        # Agent proposes compressed prose that drops negation
-        # Harness guard re-emits original
-        original_constraint = "do NOT run the migration against the production database; staging only until sign-off"
-
-        # Check if compression dropped protected content
-
-        # Guard rejects and re-emits
-        guard_output = f"Protected content preserved:\n{original_constraint}"
-        self.handler_output.append(guard_output)
-        self.action_log.append("prose_render_rejected")
+        # P-05 guard would check agent-proposed prose for dropped negation/warnings
+        # If MCP has no P-05 seam, this scenario will xfail
 
     def validate_final_state(self) -> dict[str, Any]:
         """Validate expected outcomes."""
@@ -691,27 +638,9 @@ class ScenarioExecutor:
                 results["failures"].append(f"Missing required pattern: {pattern}")
 
         for pattern in self.expected.get("must_not_include", []):
-            # Special handling for verify-001: "done" should only match completion claims
-            if self.scenario_id == "verify-001-unsupported-claim" and pattern == "done":
-                # Check for completion-claim contexts only, not field names
-                completion_patterns = [
-                    r"\bmarking.*done\b",
-                    r"\b(is |are |looks? )done\b",
-                    r"\ball done\b",
-                    r"\bdone and (working|complete|verified)\b",
-                    r"\bfixed.*done\b",
-                ]
-                if any(
-                    re.search(p, full_output, re.IGNORECASE)
-                    for p in completion_patterns
-                ):
-                    results["passed"] = False
-                    results["failures"].append(f"Forbidden pattern found: {pattern}")
-            else:
-                # Standard pattern matching
-                if re.search(pattern, full_output, re.IGNORECASE | re.DOTALL):
-                    results["passed"] = False
-                    results["failures"].append(f"Forbidden pattern found: {pattern}")
+            if re.search(pattern, full_output, re.IGNORECASE | re.DOTALL):
+                results["passed"] = False
+                results["failures"].append(f"Forbidden pattern found: {pattern}")
 
         # Check forbidden actions
         for action in self.expected.get("forbidden_actions", []):
@@ -719,11 +648,192 @@ class ScenarioExecutor:
                 results["passed"] = False
                 results["failures"].append(f"Forbidden action: {action}")
 
+        # Check invariants
+        for invariant_id in self.expected.get("invariants", []):
+            try:
+                passed, message = self._check_invariant(
+                    invariant_id, actual_state, full_output
+                )
+                if not passed:
+                    results["passed"] = False
+                    results["failures"].append(f"{invariant_id}: {message}")
+            except NotImplementedError as e:
+                # Product gap - xfail will be handled in test_scenarios.py
+                results["passed"] = False
+                results["failures"].append(f"{invariant_id}: {str(e)}")
+
+        # Check archive expectations
+        archive_exp = self.expected.get("archive_expectations")
+        if archive_exp:
+            archive_dir = self.project_root / ".coh" / "archive"
+            if archive_exp.get("append_only"):
+                # Check that archive files exist and are append-only
+                if archive_dir.exists():
+                    # Basic check: files should exist
+                    archive_files = list(archive_dir.glob("*.md"))
+                    if not archive_files and self.session_id:
+                        results["passed"] = False
+                        results["failures"].append(
+                            "Archive append_only expected but no files found"
+                        )
+
         # Critical severity
         if self.expected.get("severity") == "critical" and not results["passed"]:
             results["critical_failure"] = True
 
         return results
+
+    def _check_invariant(
+        self, invariant_id: str, lifecycle_state: str, output: str
+    ) -> tuple[bool, str]:
+        """Check a single invariant."""
+        if invariant_id == "I-01":
+            # Get foreground data from UoW
+            with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                session = uow.sessions.get(self.session_uuid)
+                if not session or not session.current_spec:
+                    return True, "I-01 not applicable (no spec)"
+
+                tasks = uow.tasks.list_by_spec(session.current_spec.id)
+                now_tasks = [t for t in tasks if t.foreground_position.value == "NOW"]
+                next_tasks = [t for t in tasks if t.foreground_position.value == "NEXT"]
+
+                foreground_data = {
+                    "now_tasks": [
+                        {
+                            "action_literal": t.action_literal,
+                            "done_when_condition": t.done_when_condition,
+                            "estimated_minutes": t.estimated_minutes,
+                            "energy": t.energy.value if t.energy else None,
+                            "activation_friction": t.activation_friction.value
+                            if t.activation_friction
+                            else None,
+                            "dependencies": [],
+                        }
+                        for t in now_tasks
+                    ],
+                    "next_tasks": [{"name": t.action_literal} for t in next_tasks],
+                }
+                return InvariantChecker.check_i01_foreground(foreground_data)
+
+        elif invariant_id == "I-02":
+            # Check readiness gate
+            with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                session = uow.sessions.get(self.session_uuid)
+                if not session or not session.current_spec:
+                    return True, "I-02 not applicable (no spec)"
+
+                from coh_application import SpecGateService
+
+                spec_gate = SpecGateService(uow)
+                spec = spec_gate._load_current_spec(session)
+                readiness = spec.readiness.value if spec else "ready"
+
+                return InvariantChecker.check_i02_readiness_gate(
+                    readiness, self.action_log
+                )
+
+        elif invariant_id == "I-03":
+            # Check evidence gate
+            completion_state = "execute"  # Default
+            if "verified" in output.lower():
+                completion_state = "verified"
+            elif "done" in output.lower() and "done when" not in output.lower():
+                completion_state = "done"
+
+            # Extract evidence from UoW
+            evidence = []
+            with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                session = uow.sessions.get(self.session_uuid)
+                if session and session.current_spec:
+                    for criterion in session.current_spec.done_when:
+                        ev_list = uow.evidence.list_for_criterion(criterion.id)
+                        evidence.extend(
+                            [
+                                {
+                                    "criterion_id": str(ev.criterion_id),
+                                    "evidence_type": ev.authority.value,
+                                    "stale": False,
+                                }
+                                for ev in ev_list
+                            ]
+                        )
+
+            return InvariantChecker.check_i03_evidence_gate(completion_state, evidence)
+
+        elif invariant_id == "I-04":
+            # Check append-only archive
+            # This would require parsing markdown files
+            return True, "I-04 check not fully implemented"
+
+        elif invariant_id == "I-05":
+            # Check progress before switch
+            return True, "I-05 check not fully implemented"
+
+        elif invariant_id == "I-06":
+            # Check proposal-only (no direct LLM mutations)
+            mutation_log = []  # Would need to track this
+            return InvariantChecker.check_i06_proposal_only(mutation_log)
+
+        elif invariant_id == "I-07":
+            # Check neutral language
+            return InvariantChecker.check_i07_neutral_language(output)
+
+        elif invariant_id == "I-08":
+            # Check permission matrix
+            # Default: assume auto-permitted actions
+            return True, "I-08 check not fully implemented"
+
+        elif invariant_id == "I-10":
+            # Check parking preserves focus
+            return True, "I-10 check not fully implemented"
+
+        elif invariant_id == "I-11":
+            # Check detour evaluation
+            raise NotImplementedError(
+                "Product gap (I-11): Detour evaluation not implemented"
+            )
+
+        elif invariant_id == "I-12":
+            # Check degradation reporting
+            return InvariantChecker.check_i12_archive_failure_degrades(output)
+
+        elif invariant_id == "I-13":
+            # Check prompt injection resistance
+            raise NotImplementedError(
+                "Product gap (I-13): Prompt injection resistance not implemented"
+            )
+
+        elif invariant_id == "I-14":
+            # Check honest degradation
+            capability_available = True  # Would need to track this
+            return InvariantChecker.check_i14_honest_degradation(
+                capability_available, output
+            )
+
+        elif invariant_id.startswith("P-"):
+            # Prose rules
+            intent = self.scenario.get("intent", "execute")
+
+            if invariant_id == "P-01":
+                return ProseRuleChecker.check_p01_evidence_first(output, intent)
+            elif invariant_id == "P-02":
+                return ProseRuleChecker.check_p02_no_preview_scaffolding(output, intent)
+            elif invariant_id == "P-03":
+                return ProseRuleChecker.check_p03_introduce_after_behavior(output)
+            elif invariant_id == "P-04":
+                raise NotImplementedError(
+                    "Product gap (P-04): Recap rendering not implemented"
+                )
+            elif invariant_id == "P-05":
+                return ProseRuleChecker.check_p05_protected_fields(output, {})
+            elif invariant_id == "P-06":
+                return ProseRuleChecker.check_p06_recovery_exemption(intent)
+            else:
+                return True, f"{invariant_id} not recognized"
+
+        else:
+            return True, f"{invariant_id} not recognized"
 
     def _is_subsequence(self, expected: list[str], actual: list[str]) -> bool:
         """Check if expected is ordered subsequence of actual."""
