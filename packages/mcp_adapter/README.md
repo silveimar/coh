@@ -60,6 +60,9 @@ The server starts on stdio and lists tools with snake_case names/args (D10).
 - `get_spec_status` — Get spec status (read-only, always permitted)
 
 **Foreground execution (I-01: NOW + ≤2 NEXT with metadata):**
+- `plan_work` — Create executable plan from task list (persist tasks, seed I-01 foreground; session must be PLAN)
+- `execute_task` — Execute planned work (T6: PLAN → EXECUTE; validates I-01 NOW metadata)
+- `verify_deliverable` — Verify deliverable with evidence (T7 → T9 complete or T8 return to execute)
 - `get_foreground` — Get foreground with NOW task metadata (action_literal, done_when_condition, estimated_minutes, energy, activation_friction)
 - `complete_now` — Complete NOW task (I-05, I-01)
 - `block_now` — Block NOW task (I-05, I-01)
@@ -127,7 +130,7 @@ Tests cover:
 
 1. ✅ ~~Wire persistence layer~~ — Complete: SqlAlchemyUnitOfWork connects to `.coh/coh.db`
 2. ✅ ~~Wire application services~~ — Complete: SpecGateService + ForegroundService in-process
-3. Implement remaining MCP tools: `plan_work`, `execute_task`, `verify_deliverable`
+3. ✅ ~~Implement remaining MCP tools~~ — Complete: `plan_work`, `execute_task`, `verify_deliverable`
 4. Add FastAPI HTTP/SSE transport for web clients
 5. Implement `inspect_repository` capability (filesystem + git inspection)
 6. Add P-02/P-05 full NLP-based validation (current: keyword matching)
