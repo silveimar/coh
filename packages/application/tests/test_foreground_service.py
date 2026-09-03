@@ -285,9 +285,7 @@ class TestForegroundService:
             uow.commit()
 
         with uow:
-            initial_fg = service.calculate_foreground(session_with_spec.id)
-
-        initial_now_id = initial_fg.now_task.id
+            _initial_fg = service.calculate_foreground(session_with_spec.id)
 
         with uow:
             new_fg = service.park_task(session_with_spec.id, task2.id, "Low priority")
