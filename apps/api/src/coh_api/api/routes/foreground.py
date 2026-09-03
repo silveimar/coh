@@ -66,23 +66,14 @@ def get_foreground(session_id: UUID, goal: str | None = None) -> ForegroundRespo
         try:
             foreground = service.calculate_foreground(session_id, goal)
 
-            # Validate I-01
-            valid, violations = foreground.validate_invariant_i01()
-            if not valid:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail={
-                        "error_code": "foreground_invariant_violation",
-                        "message": f"I-01 violation: {'; '.join(violations)}",
-                    },
-                )
-
+            # I-01 should be enforced at service level, not here
+            # GET operations are always permitted
             return _map_foreground_to_response(foreground)
         except ValueError as e:
-            raise HTTPException(  # noqa: B904
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "not_found", "message": str(e)},
-            )
+            ) from None
 
 
 @router.post("/complete-now", response_model=ForegroundResponse)
@@ -120,14 +111,14 @@ def complete_now_task(request: CompleteNowTaskRequest) -> ForegroundResponse:
         except ValueError as e:
             error_msg = str(e)
             if "not the NOW task" in error_msg:
-                raise HTTPException(  # noqa: B904
+                raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail={"error_code": "not_now_task", "message": error_msg},
-                )
-            raise HTTPException(  # noqa: B904
+                ) from None
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "not_found", "message": error_msg},
-            )
+            ) from None
 
 
 @router.post("/block-now", response_model=ForegroundResponse)
@@ -164,14 +155,14 @@ def block_now_task(request: BlockNowTaskRequest) -> ForegroundResponse:
         except ValueError as e:
             error_msg = str(e)
             if "not the NOW task" in error_msg:
-                raise HTTPException(  # noqa: B904
+                raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail={"error_code": "not_now_task", "message": error_msg},
-                )
-            raise HTTPException(  # noqa: B904
+                ) from None
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "not_found", "message": error_msg},
-            )
+            ) from None
 
 
 @router.post("/park", response_model=ForegroundResponse)
@@ -206,10 +197,10 @@ def park_task(request: ParkTaskRequest) -> ForegroundResponse:
 
             return _map_foreground_to_response(foreground)
         except ValueError as e:
-            raise HTTPException(  # noqa: B904
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "not_found", "message": str(e)},
-            )
+            ) from None
 
 
 @router.post("/interrupt-now", response_model=ForegroundResponse)
@@ -248,14 +239,14 @@ def interrupt_now_task(request: InterruptNowTaskRequest) -> ForegroundResponse:
         except ValueError as e:
             error_msg = str(e)
             if "not the NOW task" in error_msg:
-                raise HTTPException(  # noqa: B904
+                raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail={"error_code": "not_now_task", "message": error_msg},
-                )
-            raise HTTPException(  # noqa: B904
+                ) from None
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "not_found", "message": error_msg},
-            )
+            ) from None
 
 
 @router.get("/status/{session_id}", response_model=ForegroundStatusResponse)

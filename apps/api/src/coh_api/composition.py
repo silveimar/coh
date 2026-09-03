@@ -41,6 +41,9 @@ _container: ServiceContainer | None = None
 def init_services(database_url: str | None = None) -> None:
     """Initialize global service container."""
     global _container
+    # Skip if already initialized (e.g., by tests)
+    if _container is not None:
+        return
     _container = ServiceContainer(database_url)
 
 

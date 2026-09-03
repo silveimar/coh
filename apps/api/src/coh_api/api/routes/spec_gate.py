@@ -82,10 +82,10 @@ def propose_spec(request: ProposeSpecRequest) -> SpecResponse:
                 blockers=blockers,
             )
         except ValueError as e:
-            raise HTTPException(  # noqa: B904
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "session_not_found", "message": str(e)},
-            )
+            ) from None
 
 
 @router.post(
@@ -179,14 +179,14 @@ def confirm_spec(request: ConfirmSpecRequest) -> SpecResponse:
         except ValueError as e:
             error_msg = str(e)
             if "readiness=BLOCKED" in error_msg or "Cannot confirm" in error_msg:
-                raise HTTPException(  # noqa: B904
+                raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail={"error_code": "readiness_blocked", "message": error_msg},
-                )
-            raise HTTPException(  # noqa: B904
+                ) from None
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "session_not_found", "message": error_msg},
-            )
+            ) from None
 
 
 @router.post("/revise", response_model=SpecResponse)
@@ -225,10 +225,10 @@ def revise_spec(request: ReviseSpecRequest) -> SpecResponse:
                 blockers=blockers,
             )
         except ValueError as e:
-            raise HTTPException(  # noqa: B904
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error_code": "not_found", "message": str(e)},
-            )
+            ) from None
 
 
 @router.get("/mutation-allowed/{session_id}", response_model=MutationAllowedResponse)
