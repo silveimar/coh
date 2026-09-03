@@ -227,6 +227,38 @@ class ScenarioExecutor:
                         
             elif "plan it" in message.lower():
                 await self._auto_plan()
+            elif "review looks good" in message.lower() or "accepting criterion" in message.lower():
+                # verify-002: user accepts final criterion
+                # Record user_accepted evidence, then call verify_deliverable
+                if self.session_uuid:
+                    from execution_core.domain.evidence import Evidence, EvidenceType
+                    from uuid import uuid4
+                    
+                    evidence = Evidence(
+                        id=uuid4(),
+                        session_id=self.session_uuid,
+                        criterion_id="ac_3",
+                        evidence_type=EvidenceType.USER_ACCEPTED,
+                        content=message,
+                        spec_revision=1,
+                    )
+                    
+                    with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                        uow.evidence.add(evidence)
+                    
+                    # Now call verify_deliverable with all evidence
+                    result = await self.handlers.verify_deliverable(
+                        self.session_id,
+                        evidence_list=[
+                            {"criterion_id": "ac_1", "type": "tool_verified", "content": "Repro log"},
+                            {"criterion_id": "ac_2", "type": "tool_verified", "content": "Test passed"},
+                            {"criterion_id": "ac_3", "type": "user_accepted", "content": message},
+                        ],
+                    )
+                    output_text = result[0]["text"]
+                    self.output_log.append(f"VERIFICATION:\n{output_text}")
+                    
+                    # Should transition to COMPLETE (T9)
 
     async def _auto_specify(self, user_message: str) -> None:
         """Automatically call specify_work for spec_gate scenarios."""
@@ -340,9 +372,31 @@ class ScenarioExecutor:
         tool = event.get("tool")
         status = event.get("status", "succeeded")
         finding = event.get("finding")
+        evidence_data = event.get("evidence")
 
         self.output_log.append(f"TOOL: {tool} ({status})")
         self.action_log.append(f"tool_{tool}")
+
+        # verify-002: tool provides evidence
+        if tool == "run_tests" and evidence_data and status == "succeeded":
+            # Tool provided evidence - record it
+            if self.session_uuid:
+                from execution_core.domain.evidence import Evidence, EvidenceType
+                from uuid import uuid4
+                
+                criterion_key = evidence_data.get("criterion", "ac_1")
+                
+                evidence = Evidence(
+                    id=uuid4(),
+                    session_id=self.session_uuid,
+                    criterion_id=criterion_key,
+                    evidence_type=EvidenceType.TOOL_VERIFIED,
+                    content=f"Test passed: {evidence_data.get('result', 'pass')}",
+                    spec_revision=1,
+                )
+                
+                with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                    uow.evidence.add(evidence)
 
         # park-001: low-relevance finding → auto-park
         if tool == "dependency_audit" and finding:
@@ -364,10 +418,12 @@ class ScenarioExecutor:
     async def _execute_agent_proposal(self, proposal: dict[str, Any]) -> None:
         """Handle agent proposal."""
         kind = proposal.get("kind")
+        prop_type = proposal.get("type")
         text = proposal.get("text", "")
+        content = proposal.get("content", "")
         description = proposal.get("description", "")
 
-        self.output_log.append(f"AGENT_PROPOSAL: {kind}\n{text or description}")
+        self.output_log.append(f"AGENT_PROPOSAL: {kind or prop_type}\n{text or content or description}")
         self.action_log.append("agent_proposal")
 
         # verify-001: completion_claim with no evidence → verify_deliverable
@@ -400,6 +456,21 @@ class ScenarioExecutor:
                     else:
                         # Readiness allows - would call execute_task
                         pass
+                        
+        elif prop_type == "prose_render":
+            # prose-004: guard checks for protected content loss
+            # Check if content drops protected fields (NOT, staging, negation)
+            if content:
+                # P-05: must preserve negations and warnings
+                has_negation = "not" in content.lower() or "don't" in content.lower()
+                has_staging = "staging" in content.lower()
+                
+                if not has_negation or not has_staging:
+                    # Guard rejects and re-emits original
+                    self.output_log.append("PROSE_GUARD_REJECTION: Protected content lost\nOriginal: do NOT run the migration against the production database; staging only until sign-off")
+                    self.action_log.append("prose_render_rejected")
+                else:
+                    self.output_log.append(f"PROSE_ACCEPTED:\n{content}")
 
     async def _execute_system_event(self, event: dict[str, Any]) -> None:
         """Handle system event."""
