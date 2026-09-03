@@ -704,6 +704,7 @@ dependencies = [
     { name = "coh-archive" },
     { name = "execution-core" },
     { name = "mcp" },
+    { name = "persistence" },
     { name = "prose" },
     { name = "pydantic" },
 ]
@@ -722,6 +723,7 @@ requires-dist = [
     { name = "coh-archive", editable = "packages/archive" },
     { name = "execution-core", editable = "packages/execution-core" },
     { name = "mcp", specifier = ">=1.0.0" },
+    { name = "persistence", editable = "packages/persistence" },
     { name = "prose", editable = "packages/prose" },
     { name = "pydantic", specifier = ">=2.9.0" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.380" },

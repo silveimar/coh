@@ -9,6 +9,7 @@ dependencies = [
     "execution-core",
     "coh-archive",
     "prose",
+    "persistence",
 ]
 
 [project.optional-dependencies]
@@ -38,3 +39,4 @@ execution-core = { workspace = true }
 persistence = { workspace = true }
 coh-archive = { workspace = true }
 prose = { workspace = true }
+# persistence already listed above
