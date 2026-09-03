@@ -291,7 +291,11 @@ class SpecGateService:
 
         blocking_unknowns = [u for u in spec.unknowns if u.blocking and not u.resolved]
         if blocking_unknowns:
-            blockers.append(f"{len(blocking_unknowns)} blocking unknown(s)")
+            for unknown in blocking_unknowns:
+                blocker_text = f"Unknown: {unknown.text}"
+                if unknown.recommended_default:
+                    blocker_text += f" (recommended: {unknown.recommended_default})"
+                blockers.append(blocker_text)
 
         blocking_assumptions = [
             a

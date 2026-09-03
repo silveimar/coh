@@ -61,10 +61,6 @@ async def test_scenario(scenario_path: Path, temp_project_root, eval_results_dir
         reason, invariant = PRODUCT_GAPS[scenario_id]
         pytest.skip(f"Product gap ({invariant}): {reason}")
 
-    # P-04 gap: prose-002 expected to fail until recap rendering implemented
-    if scenario_id == "prose-002-recap-threshold":
-        pytest.xfail("P-04: Recap rendering after threshold not yet implemented")
-
     # Create mock adapter with scenario capabilities
     with open(scenario_path) as f:
         scenario = yaml.safe_load(f)
