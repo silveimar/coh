@@ -9,8 +9,7 @@ from typing import Any
 from uuid import UUID
 
 from coh_mcp.errors import CapabilityNotImplementedError
-
-from ..fixtures.inspection_findings import INSPECTION_FINDINGS
+from evals.fixtures.inspection_findings import INSPECTION_FINDINGS
 
 
 class MockAdapter:
