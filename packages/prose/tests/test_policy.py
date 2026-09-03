@@ -121,11 +121,13 @@ class TestP05ProtectedFields:
         assert guarded == original
 
     def test_guard_compression_accepts_valid(self):
-        """Test guard_compression accepts valid compression that preserves protected fields."""
+        """Test guard_compression with valid preserved protected fields."""
         policy = ProsePolicy()
         # Simple case: no compression, just return the same text
         original = "Do not run against production. Warning: this is irreversible."
-        compressed_valid = "Do not run against production. Warning: this is irreversible."
+        compressed_valid = (
+            "Do not run against production. Warning: this is irreversible."
+        )
 
         guarded = policy.guard_compression(original, compressed_valid)
         # Should accept since no protected fields are dropped

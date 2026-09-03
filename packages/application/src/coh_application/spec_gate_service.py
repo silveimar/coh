@@ -294,10 +294,10 @@ class SpecGateService:
             for unknown in blocking_unknowns:
                 blocker_text = f"Unknown: {unknown.text}"
                 # Provide recommended default if not set
-                recommended = (
-                    unknown.recommended_default
-                    or "Resolve before proceeding (inspection or clarification required)"
+                default_recommendation = (
+                    "Resolve before proceeding (inspection or clarification required)"
                 )
+                recommended = unknown.recommended_default or default_recommendation
                 blocker_text += f" (recommended: {recommended})"
                 blockers.append(blocker_text)
 
