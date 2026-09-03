@@ -49,12 +49,27 @@ The server starts on stdio and lists tools with snake_case names/args (D10).
 
 ### Available Tools
 
+**Session lifecycle:**
 - `create_session` — Create session with intent inference (T1)
-- `inspect_repository` — Returns `NOT_IMPLEMENTED` (I-14: capability not yet wired)
-- `specify_work` — Propose spec with inspection findings before the block (P-01)
-- `confirm_spec` — Confirm/correct spec (T4/T5)
-- `create_checkpoint` — Store restart action + archive refs (I-09)
 - `recover_session` — Render recovery summary (P-06: prospective framing allowed)
+
+**Specification management (I-02 readiness gate):**
+- `specify_work` — Propose spec with inspection findings before the block (P-01)
+- `propose_spec` — Propose specification via SpecGateService (read-only, always permitted)
+- `confirm_spec` — Confirm/correct spec (T4/T5); I-02: blocked confirmation returns error
+- `get_spec_status` — Get spec status (read-only, always permitted)
+
+**Foreground execution (I-01: NOW + ≤2 NEXT with metadata):**
+- `get_foreground` — Get foreground with NOW task metadata (action_literal, done_when_condition, estimated_minutes, energy, activation_friction)
+- `complete_now` — Complete NOW task (I-05, I-01)
+- `block_now` — Block NOW task (I-05, I-01)
+- `park_task` — Park task without changing NOW (I-10)
+
+**Repository inspection:**
+- `inspect_repository` — Returns `NOT_IMPLEMENTED` (I-14: capability not yet wired)
+
+**Checkpoint and archive:**
+- `create_checkpoint` — Store restart action + archive refs (I-09)
 - `get_archive_status` — Archive health visibility (I-12)
 
 ## Architecture
@@ -64,7 +79,13 @@ MCP Tool Call
   ↓
 COHHandlers (src/coh_mcp/handlers.py)
   ↓
+Application Services (in-process, no HTTP)
+  ├─ SpecGateService (I-02 readiness gate)
+  └─ ForegroundService (I-01 NOW + NEXT 2)
+  ↓
 Execution Core (domain state machine)
+  ↓
+SqlAlchemyUnitOfWork → .coh/coh.db (SQLite WAL)
   ↓
 ArchiveCheckpointWiring (src/coh_mcp/archive_wiring.py)
   ↓
@@ -97,19 +118,20 @@ Tests cover:
 ## Trade-offs
 
 1. **Stdio only**: No HTTP/SSE transport yet (deferred to FastAPI app integration)
-2. **Minimal handlers**: Only session/spec/checkpoint tools; full CRUD deferred
-3. **Persistence wired**: SqlAlchemyUnitOfWork connected to `.coh/coh.db`; additional repositories next
+2. **In-process services**: MCP handlers call SpecGateService + ForegroundService directly (no HTTP to apps/api)
+3. **Persistence wired**: SqlAlchemyUnitOfWork connected to `.coh/coh.db` (SQLite WAL)
 4. **Inspection stub**: `inspect_repository` raises `NOT_IMPLEMENTED` (I-14 test only)
 5. **Simplified prose validation**: P-02/P-05 use keyword matching, not full NLP
 
 ## Next Actions
 
 1. ✅ ~~Wire persistence layer~~ — Complete: SqlAlchemyUnitOfWork connects to `.coh/coh.db`
-2. Implement remaining MCP tools: `plan_work`, `execute_task`, `verify_deliverable`
-3. Add FastAPI HTTP/SSE transport for web clients
-4. Implement `inspect_repository` capability (filesystem + git inspection)
-5. Add P-02/P-05 full NLP-based validation (current: keyword matching)
-6. Run full 19-scenario eval suite against adapter output
+2. ✅ ~~Wire application services~~ — Complete: SpecGateService + ForegroundService in-process
+3. Implement remaining MCP tools: `plan_work`, `execute_task`, `verify_deliverable`
+4. Add FastAPI HTTP/SSE transport for web clients
+5. Implement `inspect_repository` capability (filesystem + git inspection)
+6. Add P-02/P-05 full NLP-based validation (current: keyword matching)
+7. Run full 19-scenario eval suite against adapter output
 
 ## Contract Compliance
 
@@ -130,6 +152,7 @@ Tests cover:
 
 - `mcp` — Official Python MCP SDK
 - `execution-core` — Pure domain logic (7-state lifecycle, policies)
-- `persistence` — SQLAlchemy 2 repositories with SqlAlchemyUnitOfWork → `.coh/coh.db`
+- `application` — SpecGateService (I-02) + ForegroundService (I-01)
+- `persistence` — SQLAlchemy 2 repositories with SqlAlchemyUnitOfWork → `.coh/coh.db` (SQLite WAL)
 - `coh-archive` — Append-only Markdown archive with degrade-and-continue
 - `prose` — P-01…P-06 policy enforcement and §4 rendering
