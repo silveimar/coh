@@ -9,6 +9,11 @@ readme = "README.md"
 members = ["packages/*"]
 
 [tool.uv.sources]
+execution-core = { workspace = true }
+persistence = { workspace = true }
+coh-archive = { workspace = true }
+prose = { workspace = true }
+mcp-adapter = { workspace = true }
 
 [tool.ruff]
 line-length = 88
@@ -27,7 +32,7 @@ select = [
 ignore = []
 
 [tool.ruff.lint.isort]
-known-first-party = ["execution_core", "coh_archive", "persistence"]
+known-first-party = ["execution_core", "coh_archive", "persistence", "coh_prose", "coh_mcp"]
 
 [tool.pyright]
 pythonVersion = "3.12"
