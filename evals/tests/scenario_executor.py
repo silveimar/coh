@@ -314,9 +314,7 @@ class ScenarioExecutor:
             readiness=final_spec.readiness.value,
         )
         rendered = renderer.render_spec_proposal(spec_proposal)
-        self.handler_output.append(
-            f"\n--- Revised specification (previous work preserved) ---\n{rendered}"
-        )
+        self.handler_output.append(rendered)
 
     async def _run_plan_001_foreground(self) -> None:
         """plan-001: Planning with foreground (I-01)."""
@@ -679,6 +677,12 @@ class ScenarioExecutor:
                     results["passed"] = False
                     results["failures"].append(
                         "Product gap xfail: Product gap (P-05): protected-field guard not wired in handlers"
+                    )
+                elif self.scenario_id == "spec-004-goal-revision" and pattern == "previous":
+                    # I-09/T10 gap: revised spec prose doesn't acknowledge previous work
+                    results["passed"] = False
+                    results["failures"].append(
+                        "Product gap xfail: Product gap (I-09/T10): revised spec prose does not acknowledge previous work"
                     )
                 else:
                     results["passed"] = False
