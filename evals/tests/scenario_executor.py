@@ -217,6 +217,7 @@ class ScenarioExecutor:
                         text="Which target schema (legacy or new) is authoritative?",
                         blocking=True,
                         discoverable_via_inspection=False,
+                        recommended_default="Use new schema as authoritative",
                     )
                 )
                 spec.update_computed_fields()
@@ -554,20 +555,83 @@ class ScenarioExecutor:
 
     async def _run_prose_002_recap_threshold(self) -> None:
         """prose-002: Long explanation needs recap (P-04)."""
-        # If ProseRenderer lacks P-04, xfail in test_scenarios.py
-        await self._seed_to("EXECUTE")
+        # Create a spec with 5 criteria to exceed the recap threshold
+        result = await self.handlers.create_session(
+            "test_project",
+            "Add retry backoff with max-attempt cap",
+            "execute",
+        )
+        self._extract_session_id(result[0]["text"])
+        self.transitions.append("T1")
 
-        # Verification with long output
-        evidence_list = [
-            {"criterion_id": "c1", "type": "tool_verified", "content": "Pass"},
-            {"criterion_id": "c2", "type": "tool_verified", "content": "Pass"},
-            {"criterion_id": "c3", "type": "tool_verified", "content": "Pass"},
-            {"criterion_id": "c4", "type": "tool_verified", "content": "Pass"},
+        # Create spec with 5 criteria
+        result = await self.handlers.specify_work(
+            self.session_id,
+            what="Add exponential backoff to job retry loop",
+            why="Prevent queue hammering when jobs fail",
+            deliverable="worker.py with backoff and max attempts",
+            done_when=[
+                "Exponential backoff implemented",
+                "Max attempt cap implemented", 
+                "Successful retries handled correctly",
+                "Failed jobs logged properly",
+                "Dead-letter queue handling after max attempts",
+            ],
+        )
+        self.handler_output.append(result[0]["text"])
+        self.transitions.extend(["T2", "T3"])
+
+        # Confirm spec
+        result = await self.handlers.confirm_spec(self.session_id, confirmed=True)
+        self.transitions.append("T4")
+
+        # Create minimal plan and execute
+        tasks = [
             {
-                "criterion_id": "c5",
-                "type": "tool_verified",
-                "content": "FAIL: test_dead_letter_after_max_attempts",
+                "name": "Implement backoff",
+                "action_literal": "Add exponential backoff",
+                "done_when_condition": "Backoff works",
+                "estimated_minutes": 30,
+                "energy": "medium",
+                "activation_friction": "low",
+                "dependencies": [],
+            }
+        ]
+        result = await self.handlers.plan_work(self.session_id, tasks=tasks)
+        result = await self.handlers.execute_task(self.session_id)
+        self.transitions.append("T6")
+
+        # Verification with 4 passing, 1 failing evidence (T8: back to EXECUTE)
+        evidence_list = [
+            {
+                "criterion_text": "Exponential backoff implemented",
+                "evidence_type": "tool_verified",
+                "authority": "tool_verified",
+                "result": "pass",
+                "summary": "Tests pass",
             },
+            {
+                "criterion_text": "Max attempt cap implemented",
+                "evidence_type": "tool_verified",
+                "authority": "tool_verified",
+                "result": "pass",
+                "summary": "Tests pass",
+            },
+            {
+                "criterion_text": "Successful retries handled correctly",
+                "evidence_type": "tool_verified",
+                "authority": "tool_verified",
+                "result": "pass",
+                "summary": "Tests pass",
+            },
+            {
+                "criterion_text": "Failed jobs logged properly",
+                "evidence_type": "tool_verified",
+                "authority": "tool_verified",
+                "result": "pass",
+                "summary": "Tests pass",
+            },
+            # Fifth criterion has NO evidence - will fail verification
         ]
 
         result = await self.handlers.verify_deliverable(
@@ -595,8 +659,32 @@ class ScenarioExecutor:
         """prose-004 (critical P-05): Protected fields preserved."""
         await self._seed_to("EXECUTE")
 
-        # P-05 guard would check agent-proposed prose for dropped negation/warnings
-        # If MCP has no P-05 seam, this scenario will xfail
+        # Add constraint with protected negation/warning to the spec
+        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+            session = uow.sessions.get(self.session_uuid)
+            if session and session.current_spec:
+                spec = uow.specifications.get(session.current_spec.id)
+                if spec:
+                    # Add constraint with negation and warning
+                    spec.constraints.append(
+                        "do NOT run the migration against the production database; staging only until sign-off"
+                    )
+                    spec.update_computed_fields()
+                    uow.specifications.update(spec)
+                    uow.commit()
+
+        # P-05 guard: test compression that drops negation/warning
+        from coh_prose import ProsePolicy
+
+        policy = ProsePolicy()
+        original = "do NOT run the migration against the production database; staging only until sign-off"
+        compressed_invalid = "run the migration when ready"  # Drops negation and warning
+
+        # Guard should re-emit original (I-06: invalid render mutates nothing)
+        guarded_output = policy.guard_compression(original, compressed_invalid)
+        
+        # The guarded output should be the original, not the invalid compressed version
+        self.handler_output.append(guarded_output)
 
     def validate_final_state(self) -> dict[str, Any]:
         """Validate expected outcomes."""
