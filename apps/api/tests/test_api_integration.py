@@ -85,6 +85,31 @@ def session(service_container):
 class TestI02ReadinessGate:
     """Test I-02: Material mutation blocked while readiness=BLOCKED."""
 
+    def test_confirm_ready_spec_succeeds(self, client, session):
+        """Confirm returns 201 when spec is READY (I-02)."""
+        test_session, _ = session
+
+        # Confirm a spec with all required fields
+        response = client.post(
+            "/api/v1/spec-gate/confirm",
+            json={
+                "session_id": str(test_session.id),
+                "spec": {
+                    "session_id": str(test_session.id),
+                    "what": "Test feature",
+                    "why": "Testing requirement",
+                    "deliverable": "Working test output",
+                    "done_when": ["Tests pass", "Documentation complete"],
+                },
+                "idempotency_key": "test-ready-confirm",
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["readiness"] == "ready"
+        assert data["what"] == "Test feature"
+
     def test_confirm_blocked_when_missing_required_fields(self, client, session):
         """Confirm returns 422 when spec is missing required fields (I-02)."""
         test_session, _ = session
@@ -144,16 +169,10 @@ class TestI02ReadinessGate:
         data = response.json()
         assert "readiness" in data
 
-    def test_mutation_allowed_check_returns_blockers(self, client):
+    def test_mutation_allowed_check_returns_blockers(self, client, service_container):
         """Mutation-allowed check returns blockers when readiness=BLOCKED."""
         # Create a session with no spec (automatically blocked)
-        test_container = client.app.extra.get("service_container")
-        if not test_container:
-            from coh_api.composition import get_container
-
-            test_container = get_container()
-
-        uow = SqlAlchemyUnitOfWork(test_container.session_factory)
+        uow = SqlAlchemyUnitOfWork(service_container.session_factory)
         session = ExecutionSession(
             project_id="test-project-2",
             intent=SessionIntent.EXECUTE,
@@ -177,17 +196,12 @@ class TestI02ReadinessGate:
 class TestI01ForegroundConstraints:
     """Test I-01: At most one NOW and two NEXT with required metadata."""
 
-    def test_foreground_enforces_now_metadata_requirements(self, client, session):
+    def test_foreground_enforces_now_metadata_requirements(self, client, session, service_container):
         """Foreground validates NOW task has required metadata (I-01)."""
         test_session, test_spec = session
 
         # Create a task without required metadata
-        uow = SqlAlchemyUnitOfWork(client.app.extra.get("service_container") or None)
-        if not uow:
-            from coh_api.composition import get_container
-
-            container = get_container()
-            uow = SqlAlchemyUnitOfWork(container.session_factory)
+        uow = SqlAlchemyUnitOfWork(service_container.session_factory)
 
         task = Task(
             title="Test task",
@@ -213,17 +227,12 @@ class TestI01ForegroundConstraints:
             assert data["detail"]["error_code"] == "foreground_invariant_violation"
             assert "I-01" in data["detail"]["message"]
 
-    def test_complete_now_requires_now_task(self, client, session):
+    def test_complete_now_requires_now_task(self, client, session, service_container):
         """Complete NOW returns 422 if task is not the NOW task (I-01)."""
         test_session, test_spec = session
 
         # Create a NEXT task
-        uow = SqlAlchemyUnitOfWork(client.app.extra.get("service_container") or None)
-        if not uow:
-            from coh_api.composition import get_container
-
-            container = get_container()
-            uow = SqlAlchemyUnitOfWork(container.session_factory)
+        uow = SqlAlchemyUnitOfWork(service_container.session_factory)
 
         task = Task(
             title="Test task",

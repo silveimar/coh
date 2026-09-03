@@ -61,8 +61,7 @@ def get_foreground(session_id: UUID, goal: str | None = None) -> ForegroundRespo
     container = get_container()
 
     with container.create_uow() as uow:
-        service = container.foreground_service()
-        service.uow = uow
+        service = container.foreground_service(uow)
 
         try:
             foreground = service.calculate_foreground(session_id, goal)
@@ -97,8 +96,7 @@ def complete_now_task(request: CompleteNowTaskRequest) -> ForegroundResponse:
     container = get_container()
 
     with container.create_uow() as uow:
-        service = container.foreground_service()
-        service.uow = uow
+        service = container.foreground_service(uow)
 
         try:
             foreground = service.complete_now_task(
@@ -142,8 +140,7 @@ def block_now_task(request: BlockNowTaskRequest) -> ForegroundResponse:
     container = get_container()
 
     with container.create_uow() as uow:
-        service = container.foreground_service()
-        service.uow = uow
+        service = container.foreground_service(uow)
 
         try:
             foreground = service.block_now_task(
@@ -187,8 +184,7 @@ def park_task(request: ParkTaskRequest) -> ForegroundResponse:
     container = get_container()
 
     with container.create_uow() as uow:
-        service = container.foreground_service()
-        service.uow = uow
+        service = container.foreground_service(uow)
 
         try:
             foreground = service.park_task(
@@ -227,8 +223,7 @@ def interrupt_now_task(request: InterruptNowTaskRequest) -> ForegroundResponse:
     container = get_container()
 
     with container.create_uow() as uow:
-        service = container.foreground_service()
-        service.uow = uow
+        service = container.foreground_service(uow)
 
         try:
             foreground = service.interrupt_now_task(
@@ -274,8 +269,7 @@ def get_foreground_status(session_id: UUID) -> ForegroundStatusResponse:
     container = get_container()
 
     with container.create_uow() as uow:
-        service = container.foreground_service()
-        service.uow = uow
+        service = container.foreground_service(uow)
 
         status_dict = service.get_foreground_status(session_id)
 

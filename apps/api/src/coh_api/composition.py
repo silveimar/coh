@@ -26,14 +26,12 @@ class ServiceContainer:
         """Create a new Unit of Work instance."""
         return SqlAlchemyUnitOfWork(self.session_factory)
 
-    def spec_gate_service(self) -> SpecGateService:
-        """Create SpecGateService with new UnitOfWork."""
-        uow = self.create_uow()
+    def spec_gate_service(self, uow: SqlAlchemyUnitOfWork) -> SpecGateService:
+        """Create SpecGateService with provided UnitOfWork."""
         return SpecGateService(uow)
 
-    def foreground_service(self) -> ForegroundService:
-        """Create ForegroundService with new UnitOfWork."""
-        uow = self.create_uow()
+    def foreground_service(self, uow: SqlAlchemyUnitOfWork) -> ForegroundService:
+        """Create ForegroundService with provided UnitOfWork."""
         return ForegroundService(uow)
 
 

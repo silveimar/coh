@@ -28,8 +28,7 @@ def propose_spec(request: ProposeSpecRequest) -> SpecResponse:
     container = get_container()
 
     with container.create_uow() as uow:
-        service = container.spec_gate_service()
-        service.uow = uow
+        service = container.spec_gate_service(uow)
 
         assumptions_dicts = None
         if request.assumptions:
@@ -100,8 +99,7 @@ def confirm_spec(request: ConfirmSpecRequest) -> SpecResponse:
     container = get_container()
 
     with container.create_uow() as uow:
-        service = container.spec_gate_service()
-        service.uow = uow
+        service = container.spec_gate_service(uow)
 
         # I-02: Check mutation allowed before proceeding
         allowed, state, blockers = service.check_mutation_allowed(request.session_id)
@@ -197,8 +195,7 @@ def revise_spec(request: ReviseSpecRequest) -> SpecResponse:
     container = get_container()
 
     with container.create_uow() as uow:
-        service = container.spec_gate_service()
-        service.uow = uow
+        service = container.spec_gate_service(uow)
 
         try:
             revised_spec = service.revise_spec(
@@ -240,8 +237,7 @@ def check_mutation_allowed(session_id: UUID) -> MutationAllowedResponse:
     container = get_container()
 
     with container.create_uow() as uow:
-        service = container.spec_gate_service()
-        service.uow = uow
+        service = container.spec_gate_service(uow)
 
         allowed, state, blockers = service.check_mutation_allowed(session_id)
 
@@ -260,8 +256,7 @@ def get_spec_status(session_id: UUID) -> SpecStatusResponse:
     container = get_container()
 
     with container.create_uow() as uow:
-        service = container.spec_gate_service()
-        service.uow = uow
+        service = container.spec_gate_service(uow)
 
         status_dict = service.get_spec_status(session_id)
 

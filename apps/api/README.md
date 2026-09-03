@@ -50,8 +50,10 @@ uv pip install -e "apps/api[dev]"
 ### Start the server
 
 ```bash
-uv run uvicorn coh_api.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn coh_api.main:app --reload
 ```
+
+**Local-only binding** (D7): uvicorn defaults to 127.0.0.1:8000. Add `--host 0.0.0.0` only when needed for container/VM access.
 
 **Database:** SQLite at `.coh/coh.db` (WAL mode, auto-created on first run).
 
