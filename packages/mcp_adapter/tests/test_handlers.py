@@ -526,9 +526,7 @@ async def test_complete_now_on_non_now_task_errors(handlers: COHHandlers):
         uow.tasks.add(next_task)
 
     # Attempt to complete NEXT task as if it were NOW - should error
-    result = await handlers.complete_now(
-        str(session_id), str(next_task.id), "Done"
-    )
+    result = await handlers.complete_now(str(session_id), str(next_task.id), "Done")
 
     text = result[0]["text"]
     assert "Error:" in text

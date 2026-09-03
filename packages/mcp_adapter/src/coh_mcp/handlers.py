@@ -786,9 +786,7 @@ Writes failed: {integration.writes_failed}
             }
         ]
 
-    async def block_now(
-        self, session_id: str, task_id: str, reason: str
-    ) -> list[dict]:
+    async def block_now(self, session_id: str, task_id: str, reason: str) -> list[dict]:
         """
         Block NOW task (I-05, I-01).
 
@@ -830,9 +828,7 @@ Writes failed: {integration.writes_failed}
             }
         ]
 
-    async def park_task(
-        self, session_id: str, task_id: str, reason: str
-    ) -> list[dict]:
+    async def park_task(self, session_id: str, task_id: str, reason: str) -> list[dict]:
         """
         Park task without changing NOW (I-10).
 
