@@ -2,8 +2,6 @@
 
 from uuid import uuid4
 
-from persistence.infrastructure.database import init_db
-from persistence.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -17,6 +15,8 @@ from execution_core.domain.enums import (
 )
 from execution_core.domain.session import ExecutionSession
 from execution_core.domain.specification import DoneWhenCriterion, Specification
+from persistence.infrastructure.database import init_db
+from persistence.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 
 
 def test_crash_restart_recovery(temp_db: str) -> None:
