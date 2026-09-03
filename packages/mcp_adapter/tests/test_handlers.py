@@ -17,6 +17,10 @@ def handlers(tmp_path: Path) -> COHHandlers:
 @pytest.mark.asyncio
 async def test_create_session_round_trip(handlers: COHHandlers):
     """Test create_session round-trip: persist via archive."""
+    from uuid import UUID
+
+    from persistence.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
+
     result = await handlers.create_session(
         project_id="test-project",
         user_input="Fix the retry logic",
@@ -29,8 +33,16 @@ async def test_create_session_round_trip(handlers: COHHandlers):
     assert "State: INSPECT" in result[0]["text"]
     assert "Archive status:" in result[0]["text"]
 
-    assert len(handlers.sessions) == 1
-    assert len(handlers.checkpoints) == 1
+    # Extract session_id from result text
+    session_id_str = result[0]["text"].split("\n")[0].split(": ")[1]
+    session_id = UUID(session_id_str)
+
+    # Verify via persistence
+    with SqlAlchemyUnitOfWork(handlers.session_factory) as uow:
+        session = uow.sessions.get(session_id)
+        assert session is not None
+        checkpoint = uow.checkpoints.get_latest_for_session(session_id)
+        assert checkpoint is not None
 
 
 @pytest.mark.asyncio
@@ -47,12 +59,13 @@ async def test_intent_inference(handlers: COHHandlers):
 @pytest.mark.asyncio
 async def test_inspect_repository_raises_not_implemented(handlers: COHHandlers):
     """Test I-14: inspect_repository returns NOT_IMPLEMENTED."""
-    await handlers.create_session(
+    result = await handlers.create_session(
         project_id="test-project",
         user_input="Fix bug",
     )
 
-    session_id = str(list(handlers.sessions.keys())[0])
+    # Extract session_id from result text
+    session_id = result[0]["text"].split("\n")[0].split(": ")[1]
 
     with pytest.raises(CapabilityNotImplementedError) as exc_info:
         await handlers.inspect_repository(session_id)
@@ -69,7 +82,8 @@ async def test_specify_work_renders_with_prose(handlers: COHHandlers):
         user_input="Fix retry",
     )
 
-    session_id = str(list(handlers.sessions.keys())[0])
+    # Extract session_id from result text
+    session_id = result[0]["text"].split("\n")[0].split(": ")[1]
 
     result = await handlers.specify_work(
         session_id=session_id,
@@ -97,7 +111,8 @@ async def test_confirm_spec_transitions(handlers: COHHandlers):
         user_input="Fix bug",
     )
 
-    session_id = str(list(handlers.sessions.keys())[0])
+    # Extract session_id from result text
+    session_id = result[0]["text"].split("\n")[0].split(": ")[1]
 
     await handlers.specify_work(
         session_id=session_id,
@@ -120,7 +135,8 @@ async def test_create_checkpoint_stores_restart_action(handlers: COHHandlers):
         user_input="Fix bug",
     )
 
-    session_id = str(list(handlers.sessions.keys())[0])
+    # Extract session_id from result text
+    session_id = result[0]["text"].split("\n")[0].split(": ")[1]
 
     result = await handlers.create_checkpoint(
         session_id=session_id,
@@ -141,7 +157,8 @@ async def test_recover_session_renders_with_p06_exemption(handlers: COHHandlers)
         user_input="Fix bug",
     )
 
-    session_id = str(list(handlers.sessions.keys())[0])
+    # Extract session_id from result text
+    session_id = result[0]["text"].split("\n")[0].split(": ")[1]
 
     await handlers.create_checkpoint(
         session_id=session_id,
@@ -165,20 +182,33 @@ async def test_recover_session_shows_archive_degraded_notice(
     from uuid import uuid4
 
     from execution_core.domain.checkpoint import Checkpoint
-    from execution_core.domain.enums import LifecycleState
+    from execution_core.domain.enums import ArchiveStatus, LifecycleState
+    from execution_core.domain.session import ExecutionSession
+    from persistence.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 
     session_id = uuid4()
+
+    # Create session and checkpoint in persistence
+    session = ExecutionSession(
+        id=session_id,
+        project_id="test-project",
+        intent="execute",
+        lifecycle_state=LifecycleState.EXECUTE,
+    )
 
     checkpoint = Checkpoint(
         id=uuid4(),
         session_id=session_id,
         lifecycle_state=LifecycleState.EXECUTE,
         restart_action="Test",
+        archive_status=ArchiveStatus.DEGRADED,
     )
 
-    checkpoint.mark_degraded()
+    with SqlAlchemyUnitOfWork(handlers.session_factory) as uow:
+        uow.sessions.add(session)
 
-    handlers.checkpoints[session_id] = checkpoint
+    with SqlAlchemyUnitOfWork(handlers.session_factory) as uow:
+        uow.checkpoints.add(checkpoint)
 
     result = await handlers.recover_session(str(session_id))
 
