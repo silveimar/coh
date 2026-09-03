@@ -3,9 +3,10 @@
 import tempfile
 
 import pytest
-from persistence.infrastructure.database import init_db
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import sessionmaker
+
+from persistence.infrastructure.database import init_db
 
 
 @pytest.fixture
