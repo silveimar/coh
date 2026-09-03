@@ -283,9 +283,27 @@ class ScenarioExecutor:
         """Handle tool event."""
         tool = event.get("tool")
         status = event.get("status", "succeeded")
+        finding = event.get("finding")
 
         self.output_log.append(f"TOOL: {tool} ({status})")
         self.action_log.append(f"tool_{tool}")
+
+        # park-001: low-relevance finding → auto-park
+        if tool == "dependency_audit" and finding:
+            # Call park_task
+            if self.session_id:
+                # Get current task from prior_state
+                prior = self.setup.get("prior_state", {})
+                now_task = prior.get("now_task", {})
+                task_id = now_task.get("id", "task_001")
+                
+                result = await self.handlers.park_task(
+                    self.session_id,
+                    task_id=task_id,
+                    reason=f"Low-relevance discovery: {finding}",
+                )
+                output_text = result[0]["text"]
+                self.output_log.append(f"PARKING:\n{output_text}")
 
     async def _execute_agent_proposal(self, proposal: dict[str, Any]) -> None:
         """Handle agent proposal."""
@@ -315,14 +333,25 @@ class ScenarioExecutor:
         self.action_log.append(f"system_{kind}")
 
         if kind == "interruption":
-            # Should trigger checkpoint (I-05)
+            # Create checkpoint (I-05) then simulate interruption
+            # For recover-001: prior state already has checkpoint
             pass
         elif kind == "session_resume":
-            # Should use T11 recovery
-            self.transitions.append("T11")
+            # Call recover_session (T11)
+            if self.session_id:
+                result = await self.handlers.recover_session(self.session_id)
+                output_text = result[0]["text"]
+                self.output_log.append(f"RECOVERY:\n{output_text}")
+                self.transitions.append("T11")
         elif kind == "archive_failure":
-            # Should degrade without blocking (I-12)
-            pass
+            # Inject archive failure (arch-001)
+            # Make archive directory unwritable or inject failure
+            archive_dir = self.project_root / ".coh" / "archive"
+            if archive_dir.exists():
+                import os
+                # Make read-only
+                os.chmod(archive_dir, 0o444)
+            # Next handler call will encounter failure
 
     def _validate_step_expectations(self, expect: dict[str, Any]) -> None:
         """Validate per-step expectations."""
