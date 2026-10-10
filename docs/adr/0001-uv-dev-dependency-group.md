@@ -1,6 +1,6 @@
 # ADR-0001: Put dev tools in a root uv dependency group
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-09
 - **Deciders:** proposed by lead/owner draft; owner approval required for Accepted
 - **Slice / PR:** foundation / slice 01 (dev tooling installs with `uv sync`)

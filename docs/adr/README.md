@@ -41,4 +41,4 @@ Never rewrite an accepted ADR. Write a new ADR that states what changed, set the
 
 | ADR | Title | Status | Date |
 |---|---|---|---|
-| [0001](0001-uv-dev-dependency-group.md) | Put dev tools in a root uv dependency group | Proposed | 2026-10-09 |
+| [0001](0001-uv-dev-dependency-group.md) | Put dev tools in a root uv dependency group | Accepted | 2026-10-09 |
