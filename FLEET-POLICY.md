@@ -1,4 +1,3 @@
-
 # FLEET-POLICY.md (v0)
 
 Standing instruction for every seat in the COH fleet (`lead-lead@coh`, `build-builder@coh`, `check-checker@coh`). Read at startup and again after every refocus. `CULTURE.md` and each seat's `guidance/role.md` point here.
@@ -83,5 +82,3 @@ Add this section only when GSD is installed for the fleet. Until then, delete it
 | checker | code-review (no `--fix`), secure-phase, validate-phase | Any mode that edits code, any commit |
 
 Never run `/gsd-autonomous` or `/gsd-progress --next --auto`, and never set `workflow.auto_advance`. Creating a branch, committing on it and opening a draft PR are Auto. Reading real data is Ask; use synthetic fixtures. Changing a slice's CONTEXT or PLAN after approval is Ask.
-
-
