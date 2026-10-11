@@ -13,15 +13,6 @@ dependencies = [
     "application",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.3.0",
-    "pytest-cov>=5.0.0",
-    "pytest-asyncio>=0.24.0",
-    "ruff>=0.6.0",
-    "pyright>=1.1.380",
-]
-
 [project.scripts]
 coh-mcp = "coh_mcp.server:main"
 
