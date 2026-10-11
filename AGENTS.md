@@ -38,7 +38,7 @@ uv run pyright
 uv run pytest <package>/tests        # run per package until the root run is fixed
 ```
 
-CI runs ruff on the packages and the tests per package (`.github/workflows/ci.yml`). Known gaps (Pyright not in CI, the root `pytest` run, some dev tools not installed by `uv sync`) are listed in `CONTRIBUTING.md`.
+CI runs ruff on the packages and the tests per package (`.github/workflows/ci.yml`). Known gaps (Pyright not in CI, the root `pytest` run) are listed in `CONTRIBUTING.md`.
 
 ## Hard rules
 
