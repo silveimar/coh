@@ -20,7 +20,6 @@ The MCP adapter exposes COH's execution core over the Model Context Protocol usi
 ```bash
 cd /path/to/coh
 uv sync --all-packages
-uv pip install -e "packages/mcp_adapter[dev]"
 ```
 
 ## Usage
