@@ -44,7 +44,6 @@ From workspace root:
 
 ```bash
 uv sync --all-packages
-uv pip install -e "apps/api[dev]"
 ```
 
 ### Start the server

@@ -8,7 +8,7 @@ on:
 
 jobs:
   lint-and-test:
-    name: Lint and Test (Python 3.12)
+    name: Lint and Test (Python 3.15)
     runs-on: ubuntu-latest
 
     steps:
@@ -22,12 +22,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.15"
 
       - name: Install dependencies
-        run: |
-          uv sync --all-packages
-          uv pip install -e "packages/execution-core[dev]" -e "packages/persistence[dev]" -e "packages/archive[dev]" -e "packages/prose[dev]" -e "packages/mcp_adapter[dev]" -e "packages/application[dev]" -e "apps/api[dev]"
+        run: uv sync --all-packages
 
       - name: Run ruff lint
         run: uv run ruff check packages/execution-core packages/persistence packages/archive packages/prose packages/mcp_adapter packages/application apps/api

@@ -81,3 +81,22 @@ uv changes how dependency groups are resolved in workspaces, or a package is pub
 - `.github/workflows/ci.yml`, `pyproject.toml`, `packages/*/pyproject.toml`, `apps/api/pyproject.toml`
 - `docs/coding-rules.md` (quality gates)
 - uv documentation on dependency groups and workspaces
+
+## Amendment 2026-10-11: floors raised to the latest releases
+
+- **Decision:** owner decision `qitem-20261011201048-7a1da1d2c6e1eebd`, applied in PR #12 (slice 01). It replaces the "highest minimum already declared, no version bumps" constraint above for these seven tools. The rest of the decision stands.
+- **Why:** the owner chose to move the dev tools to their current releases in the same PR, so the declared floors match what is installed.
+- **Floors in the root `[dependency-groups] dev`,** each equal to its locked version:
+
+| Tool | Floor before (highest declared minimum) | Floor now | Locked before | Locked now |
+|---|---|---|---|---|
+| ruff | `>=0.6.3` | `>=0.17.0` | 0.16.5 | 0.17.0 |
+| pyright | `>=1.1.380` | `>=1.1.414` | 1.1.411 | 1.1.414 |
+| pytest | `>=8.3.2` | `>=9.1.1` | 9.1.1 | 9.1.1 |
+| pytest-cov | `>=5.0.0` | `>=7.1.0` | 7.1.0 | 7.1.0 |
+| pytest-asyncio | `>=0.24.0` | `>=1.4.0` | 1.4.0 | 1.4.0 |
+| hypothesis | `>=6.112.0` | `>=6.169.0` | 6.167.1 | 6.169.0 |
+| httpx | `>=0.27.0` | `>=0.28.1` | 0.28.1 | 0.28.1 |
+
+- **Effect on `uv.lock`:** only ruff, pyright and hypothesis change version. No runtime or transitive dependency changes.
+- **Verified:** ruff check and format, and every package's tests under Python 3.15.0, give the same counts as `main`. No code changes were needed.
