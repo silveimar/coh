@@ -39,24 +39,37 @@ COH (Cognitive Operating Harness) is a local-first execution layer that helps so
 # Install uv if you haven't already
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Clone and setup
+# Clone and setup (installs every package plus the dev tools:
+# ruff, pyright, pytest and plugins, hypothesis, httpx)
 git clone <repository-url>
 cd coh
-uv sync
+uv sync --all-packages
 ```
 
 ### Running Tests
 
+Run the tests per package. A single root `uv run pytest` does not work yet,
+because two packages' `tests/conftest.py` files collide.
+
 ```bash
-# Run all tests
+# Run each package's tests
 uv run pytest packages/execution-core/tests
+uv run pytest packages/persistence/tests
+uv run pytest packages/archive/tests
+uv run pytest packages/prose/tests
+uv run pytest packages/mcp_adapter/tests
+uv run pytest packages/application/tests
+uv run pytest apps/api/tests
+
+# Run the behavioral eval harness
+uv run pytest evals/tests
 
 # Run with coverage
-uv run pytest packages/execution-core/tests --cov
+uv run pytest packages/execution-core/tests --cov=packages/execution-core/src
 
-# Run linting
-uv run ruff check .
-uv run ruff format --check .
+# Run linting on the packages CI checks
+uv run ruff check packages apps
+uv run ruff format --check packages apps
 ```
 
 ## Packages
