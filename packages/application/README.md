@@ -16,7 +16,7 @@ The application package implements two critical COH services:
 
 ```bash
 cd /path/to/coh
-python -m pip install -e "packages/application[dev]"
+uv sync --all-packages
 ```
 
 ## Usage
