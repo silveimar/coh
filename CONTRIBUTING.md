@@ -47,7 +47,7 @@ uv run pyright
 uv run pytest
 ```
 
-CI (`.github/workflows/ci.yml`) currently runs ruff (check and format) on the packages and `apps/api`, the tests per package with coverage, and the eval harness (`evals/tests`).
+CI (`.github/workflows/ci.yml`) currently runs ruff (check and format) on the whole repository (`.`), the tests per package with coverage, and the eval harness (`evals/tests`).
 
 **Known gaps, tracked for the foundation mission:**
 
