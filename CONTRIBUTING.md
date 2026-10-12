@@ -52,7 +52,7 @@ CI (`.github/workflows/ci.yml`) currently runs ruff (check and format) on the wh
 **Known gaps, tracked for the foundation mission:**
 
 - CI does not run `pyright` yet, although the coding rules make it a gate. Run it locally until it does.
-- The planned additions are not wired up yet: gitleaks, dependency audit (pip-audit or osv-scanner), Trivy, deptry, pre-commit, and the `fleet/checker` required status. Add each in its own PR.
+- The planned additions are not wired up yet: dependency audit (pip-audit or osv-scanner), Trivy, deptry, pre-commit, and the `fleet/checker` required status. Add each in its own PR.
 - Coverage has no enforced floor in CI yet. The target is Execution Core ≥ 90% lines; set any other floor at current coverage and let it only go up.
 
 ## Definition of Done
