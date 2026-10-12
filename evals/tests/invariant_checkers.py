@@ -239,7 +239,8 @@ class InvariantChecker:
         if drift_eval.get("intent") != intent:
             return (
                 False,
-                f"Drift evaluated against wrong intent: {drift_eval.get('intent')} != {intent}",
+                f"Drift evaluated against wrong intent: "
+                f"{drift_eval.get('intent')} != {intent}",
             )
 
         return True, "I-11 satisfied"

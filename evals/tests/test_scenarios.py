@@ -85,9 +85,7 @@ async def test_scenario(scenario_path: Path, temp_project_root, eval_results_dir
     # Check for product gap xfails first (before critical failure check)
     if not results["passed"]:
         product_gap_failures = [
-            f
-            for f in results.get("failures", [])
-            if f.startswith("Product gap xfail:")
+            f for f in results.get("failures", []) if f.startswith("Product gap xfail:")
         ]
         other_failures = [
             f
@@ -109,8 +107,7 @@ async def test_scenario(scenario_path: Path, temp_project_root, eval_results_dir
     # Assert overall pass
     if not results["passed"]:
         pytest.fail(
-            f"Scenario {scenario_id} failed:\n"
-            + "\n".join(results.get("failures", []))
+            f"Scenario {scenario_id} failed:\n" + "\n".join(results.get("failures", []))
         )
 
 
@@ -118,7 +115,8 @@ def test_schema_validation():
     """Verify all scenario files conform to documented schema."""
     Path(__file__).parent.parent / "schema" / "scenario.schema.yaml"
 
-    # Schema validation would check against schema, but for now just check required fields
+    # Schema validation would check against schema, but for now just check
+    # required fields
     required_top_level = [
         "id",
         "version",

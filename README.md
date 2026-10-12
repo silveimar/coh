@@ -67,9 +67,9 @@ uv run pytest evals/tests
 # Run with coverage
 uv run pytest packages/execution-core/tests --cov=packages/execution-core/src
 
-# Run linting on the packages CI checks
-uv run ruff check packages apps
-uv run ruff format --check packages apps
+# Run linting (the same commands CI runs)
+uv run ruff check .
+uv run ruff format --check .
 ```
 
 ## Packages
