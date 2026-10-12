@@ -63,3 +63,93 @@ jobs:
         with:
           files: ./coverage.xml
           flags: execution-core
+
+  gitleaks:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    # The release binary needs no API calls, so the token can stay read-only
+    # (gitleaks-action's PR mode calls the GitHub API).
+    permissions:
+      contents: read
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+      GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -sSfL -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks version
+
+      - name: Scan for secrets
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # The default shell is `bash -e` without pipefail; without this line
+          # the `| tee` below would hide the gitleaks exit code.
+          set -o pipefail
+
+          # Runs gitleaks with secret values redacted, writes the counts and
+          # rule/file/line/commit of each finding (never the value) to the job
+          # summary, and returns non-zero when it finds a leak or the scan did
+          # not run. gitleaks 8.30.1 exits 0 when git fails (for example on an
+          # unknown revision) and only logs ERR lines, so an ERR/FTL line or a
+          # scan of 0 commits counts as a failed scan.
+          scan() {
+            local label=$1 name=$2 rc=0 failed=""
+            shift 2
+            "$RUNNER_TEMP/gitleaks" git . --redact --no-banner --no-color --verbose \
+              --report-format json --report-path "$RUNNER_TEMP/$name.json" "$@" \
+              2>&1 | tee "$RUNNER_TEMP/$name.log" || rc=$?
+            if grep -qE ' (ERR|FTL) ' "$RUNNER_TEMP/$name.log"; then
+              failed="gitleaks logged an error"
+            elif ! grep -qE '[1-9][0-9]* commits scanned' "$RUNNER_TEMP/$name.log"; then
+              failed="gitleaks scanned no commits"
+            fi
+            {
+              echo "### gitleaks: $label"
+              echo
+              if [ -n "$failed" ]; then
+                echo "**Scan failed: $failed; see the job log.**"
+                echo
+              fi
+              grep -Eo '[0-9]+ commits scanned' "$RUNNER_TEMP/$name.log" || true
+              if [ -s "$RUNNER_TEMP/$name.json" ]; then
+                echo "$(jq length "$RUNNER_TEMP/$name.json") findings (values redacted)"
+                jq -r '.[] | "- \(.RuleID) in `\(.File)` line \(.StartLine), commit \(.Commit[0:12])"' "$RUNNER_TEMP/$name.json"
+              else
+                echo "No report written (gitleaks exit code $rc)."
+              fi
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+            if [ -n "$failed" ] && [ "$rc" -eq 0 ]; then
+              echo "::error::gitleaks ($label): $failed"
+              rc=2
+            fi
+            return $rc
+          }
+
+          status=0
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            for sha in "$BASE_SHA" "$HEAD_SHA"; do
+              if ! git rev-parse --quiet --verify "$sha^{commit}" > /dev/null; then
+                echo "::error::PR revision '$sha' is not in the checkout; the PR commits were not scanned."
+                echo "**PR scan not run: revision \`$sha\` is not in the checkout.**" >> "$GITHUB_STEP_SUMMARY"
+                status=1
+              fi
+            done
+            if [ "$status" -eq 0 ]; then
+              scan "PR commits ($BASE_SHA..$HEAD_SHA)" pr --log-opts="$BASE_SHA..$HEAD_SHA" || status=1
+            fi
+          fi
+          scan "full history" full || status=1
+          exit $status
