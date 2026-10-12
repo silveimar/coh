@@ -499,7 +499,7 @@ class ScenarioExecutor:
             evidence_list=evidence_list,
         )
         self.handler_output.append(result[0]["text"])
-        
+
         # Check if we transitioned to COMPLETE (T9)
         with SqlAlchemyUnitOfWork(self.session_factory) as uow:
             session = uow.sessions.get(self.session_uuid)
@@ -629,7 +629,8 @@ class ScenarioExecutor:
         ):
             results["passed"] = False
             results["failures"].append(
-                f"Transitions mismatch: {self.transitions} not subsequence of {expected_trans}"
+                f"Transitions mismatch: {self.transitions} "
+                f"not subsequence of {expected_trans}"
             )
 
         # Check patterns (HANDLER OUTPUT ONLY)
@@ -644,14 +645,16 @@ class ScenarioExecutor:
                 ):
                     results["passed"] = False
                     results["failures"].append(
-                        "Product gap xfail: Product gap (I-03): empty-evidence verify does not render implemented"
+                        "Product gap xfail: Product gap (I-03): "
+                        "empty-evidence verify does not render implemented"
                     )
                 elif (
                     self.scenario_id == "verify-002-evidence-done" and pattern == "3/3"
                 ):
                     results["passed"] = False
                     results["failures"].append(
-                        "Product gap xfail: Product gap (I-03): verification success prose lacks 3/3"
+                        "Product gap xfail: Product gap (I-03): "
+                        "verification success prose lacks 3/3"
                     )
                 elif (
                     self.scenario_id == "spec-003-blocking-unknown"
@@ -659,7 +662,8 @@ class ScenarioExecutor:
                 ):
                     results["passed"] = False
                     results["failures"].append(
-                        "Product gap xfail: Product gap (I-02): blocked confirm_spec payload lacks recommended default"
+                        "Product gap xfail: Product gap (I-02): "
+                        "blocked confirm_spec payload lacks recommended default"
                     )
                 elif self.scenario_id == "arch-001-write-failure" and (
                     pattern.lower() in ["record was not saved", "not saved"]
@@ -667,7 +671,8 @@ class ScenarioExecutor:
                 ):
                     results["passed"] = False
                     results["failures"].append(
-                        "Product gap xfail: Product gap (I-12): archive write failure does not emit 'record was not saved'"
+                        "Product gap xfail: Product gap (I-12): "
+                        "archive write failure does not emit 'record was not saved'"
                     )
                 elif (
                     self.scenario_id == "prose-004-protected-fields"
@@ -676,13 +681,18 @@ class ScenarioExecutor:
                     # P-05 guard pattern - also a product gap
                     results["passed"] = False
                     results["failures"].append(
-                        "Product gap xfail: Product gap (P-05): protected-field guard not wired in handlers"
+                        "Product gap xfail: Product gap (P-05): "
+                        "protected-field guard not wired in handlers"
                     )
-                elif self.scenario_id == "spec-004-goal-revision" and pattern == "previous":
+                elif (
+                    self.scenario_id == "spec-004-goal-revision"
+                    and pattern == "previous"
+                ):
                     # I-09/T10 gap: revised spec prose doesn't acknowledge previous work
                     results["passed"] = False
                     results["failures"].append(
-                        "Product gap xfail: Product gap (I-09/T10): revised spec prose does not acknowledge previous work"
+                        "Product gap xfail: Product gap (I-09/T10): "
+                        "revised spec prose does not acknowledge previous work"
                     )
                 else:
                     results["passed"] = False
@@ -690,10 +700,7 @@ class ScenarioExecutor:
 
         for pattern in self.expected.get("must_not_include", []):
             # Special handling for verify-001 "done" to ignore field labels
-            if (
-                self.scenario_id == "verify-001-unsupported-claim"
-                and pattern == "done"
-            ):
+            if self.scenario_id == "verify-001-unsupported-claim" and pattern == "done":
                 # Remove "done when" / "done_when" field labels before checking
                 output_without_labels = re.sub(
                     r"done\s+when", "", full_output, flags=re.IGNORECASE
