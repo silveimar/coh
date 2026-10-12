@@ -94,6 +94,10 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          # The default shell is `bash -e` without pipefail; without this line
+          # the `| tee` below would hide the gitleaks exit code.
+          set -o pipefail
+
           # Runs gitleaks with secret values redacted, writes the counts and
           # rule/file/line/commit of each finding (never the value) to the job
           # summary, and returns the gitleaks exit code (1 when it finds a leak).
