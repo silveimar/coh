@@ -281,12 +281,13 @@ class ProseRenderer:
             failing_criteria = [
                 c.get("criterion")
                 for c in verification.criteria_status
-                if c.get("status") in ["missing evidence", "failed", "inconclusive"]
+                if c.get("status") != "satisfied"
             ]
 
             satisfied = verification.satisfied_count
             total = verification.total_count
-            if satisfied == total:
+            # I-03: only the authoritative completion state may claim completion
+            if verification.completion_state == "done" and satisfied == total:
                 recap = f"{satisfied}/{total} criteria satisfied; work complete"
             elif failing_criteria:
                 first_failing = (

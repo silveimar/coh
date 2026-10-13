@@ -1214,8 +1214,40 @@ Writes failed: {integration.writes_failed}
         from execution_core.domain.commands import ConcurrencyError
         from execution_core.domain.enums import EvidenceAuthority, EvidenceResult
         from execution_core.domain.evidence import Evidence
-        from execution_core.policies.completion_policy import CompletionViolation
+        from execution_core.domain.specification import Specification
+        from execution_core.policies.completion_policy import (
+            CompletionPolicy,
+            CompletionViolation,
+        )
         from execution_core.state_machine.lifecycle import TransitionError
+
+        def criteria_accounting(
+            spec: Specification, evidence_objects: list[Evidence]
+        ) -> tuple[list[dict[str, str]], int]:
+            """Per-criterion status from CompletionPolicy (I-03), plus satisfied count.
+
+            A criterion counts as satisfied only with fresh, qualifying evidence;
+            otherwise its status is the policy's reason.
+            """
+            criteria_status: list[dict[str, str]] = []
+            satisfied_count = 0
+            for criterion in spec.done_when:
+                satisfied, reasons = CompletionPolicy.check_criterion_satisfied(
+                    criterion.id, evidence_objects, spec.revision
+                )
+                if satisfied:
+                    satisfied_count += 1
+                matching_ev = [
+                    e for e in evidence_objects if e.criterion_id == criterion.id
+                ]
+                criteria_status.append(
+                    {
+                        "criterion": criterion.text,
+                        "status": "satisfied" if satisfied else "; ".join(reasons),
+                        "evidence": matching_ev[0].summary if matching_ev else "none",
+                    }
+                )
+            return criteria_status, satisfied_count
 
         session_uuid = UUID(session_id)
 
@@ -1347,27 +1379,9 @@ Writes failed: {integration.writes_failed}
 
                 # Render verification success with criterion accounting (I-03)
                 renderer = ProseRenderer()
-
-                # Count satisfied vs total criteria
-                satisfied_count = 0
-                criteria_status = []
-                for criterion in spec.done_when:
-                    matching_ev = [
-                        e for e in evidence_objects if e.criterion_id == criterion.id
-                    ]
-                    is_satisfied = bool(matching_ev)
-                    if is_satisfied:
-                        satisfied_count += 1
-
-                    status = "satisfied" if is_satisfied else "no evidence"
-                    evidence_summary = matching_ev[0].summary if matching_ev else "none"
-                    criteria_status.append(
-                        {
-                            "criterion": criterion.text,
-                            "status": status,
-                            "evidence": evidence_summary,
-                        }
-                    )
+                criteria_status, satisfied_count = criteria_accounting(
+                    spec, evidence_objects
+                )
 
                 verification = VerificationResult(
                     deliverable=spec.deliverable,
@@ -1391,8 +1405,6 @@ Writes failed: {integration.writes_failed}
             except CompletionViolation as e:
                 # T8: VERIFY → EXECUTE (failed verification)
                 # Use computed completion state from CompletionPolicy (I-03)
-                from execution_core.policies.completion_policy import CompletionPolicy
-
                 completion_state, _ = CompletionPolicy.compute_completion_state(
                     spec.done_when, evidence_objects, spec.revision
                 )
@@ -1408,27 +1420,9 @@ Writes failed: {integration.writes_failed}
 
                 # Render verification failure with honest ceiling
                 renderer = ProseRenderer()
-
-                # Count satisfied vs total criteria
-                satisfied_count = 0
-                criteria_status = []
-                for criterion in spec.done_when:
-                    matching_ev = [
-                        e for e in evidence_objects if e.criterion_id == criterion.id
-                    ]
-                    is_satisfied = bool(matching_ev)
-                    if is_satisfied:
-                        satisfied_count += 1
-
-                    status = "satisfied" if is_satisfied else "missing evidence"
-                    evidence_summary = matching_ev[0].summary if matching_ev else "none"
-                    criteria_status.append(
-                        {
-                            "criterion": criterion.text,
-                            "status": status,
-                            "evidence": evidence_summary,
-                        }
-                    )
+                criteria_status, satisfied_count = criteria_accounting(
+                    spec, evidence_objects
+                )
 
                 verification = VerificationResult(
                     deliverable=spec.deliverable,

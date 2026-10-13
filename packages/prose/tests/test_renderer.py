@@ -233,6 +233,53 @@ class TestVerificationRendering:
         # Should use "criteria satisfied" not "verified" to avoid triggering I-03
         assert "criteria satisfied" in output or "work complete" in output
 
+    def test_recap_claims_completion_only_when_state_is_done(self):
+        """I-03: equal counts never yield 'work complete' unless state is done."""
+        renderer = ProseRenderer()
+        criteria_status = [
+            {"criterion": f"Criterion {i}", "status": "satisfied", "evidence": "e"}
+            for i in range(5)
+        ]
+        verification = VerificationResult(
+            deliverable="Feature Z",
+            criteria_status=criteria_status,
+            completion_state="implemented",
+            satisfied_count=5,
+            total_count=5,
+            parked_count=0,
+        )
+
+        output = renderer.render_verification(verification)
+        assert "In short: 5/5 criteria satisfied" in output
+        assert "work complete" not in output
+
+    def test_recap_counts_any_unsatisfied_status_as_failing(self):
+        """Policy reasons (not a fixed label list) mark a criterion as failing."""
+        renderer = ProseRenderer()
+        criteria_status = [
+            {"criterion": f"Criterion {i}", "status": "satisfied", "evidence": "e"}
+            for i in range(4)
+        ]
+        criteria_status.append(
+            {
+                "criterion": "Criterion 4",
+                "status": "Evidence lacks sufficient authority",
+                "evidence": "agent report",
+            }
+        )
+        verification = VerificationResult(
+            deliverable="Feature Z",
+            criteria_status=criteria_status,
+            completion_state="implemented",
+            satisfied_count=4,
+            total_count=5,
+            next_action="Add qualifying evidence",
+            parked_count=0,
+        )
+
+        output = renderer.render_verification(verification)
+        assert "4/5 criteria satisfied; Criterion 4 fails" in output
+
 
 class TestDetourRecommendationRendering:
     """Test detour recommendation rendering (P-01: finding first)."""
