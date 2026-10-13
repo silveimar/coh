@@ -658,34 +658,8 @@ class ScenarioExecutor:
         """prose-004 (critical P-05): Protected fields preserved."""
         await self._seed_to("EXECUTE")
 
-        # Add constraint with protected negation/warning to the spec
-        with SqlAlchemyUnitOfWork(self.session_factory) as uow:
-            session = uow.sessions.get(self.session_uuid)
-            if session and session.current_spec:
-                spec = uow.specifications.get(session.current_spec.id)
-                if spec:
-                    # Add constraint with negation and warning
-                    spec.constraints.append(
-                        "do NOT run the migration against the production database; staging only until sign-off"
-                    )
-                    spec.update_computed_fields()
-                    uow.specifications.update(spec)
-                    uow.commit()
-
-        # P-05 guard: test compression that drops negation/warning
-        from coh_prose import ProsePolicy
-
-        policy = ProsePolicy()
-        original = "do NOT run the migration against the production database; staging only until sign-off"
-        compressed_invalid = (
-            "run the migration when ready"  # Drops negation and warning
-        )
-
-        # Guard should re-emit original (I-06: invalid render mutates nothing)
-        guarded_output = policy.guard_compression(original, compressed_invalid)
-
-        # The guarded output should be the original, not the invalid compressed version
-        self.handler_output.append(guarded_output)
+        # ProsePolicy.guard_compression exists, but no handler or MCP path calls
+        # it yet, so this scenario xfails (see validate_final_state)
 
     def validate_final_state(self) -> dict[str, Any]:
         """Validate expected outcomes."""
@@ -727,8 +701,18 @@ class ScenarioExecutor:
 
         for pattern in self.expected.get("must_include", []):
             if not re.search(pattern, full_output, re.IGNORECASE | re.DOTALL):
-                # spec-004 goal revision still has a product gap
+                # Product gaps that should xfail, not fail
                 if (
+                    self.scenario_id == "prose-004-protected-fields"
+                    and "do not run the migration" in pattern.lower()
+                ):
+                    # P-05 guard exists in coh_prose but is not wired into output
+                    results["passed"] = False
+                    results["failures"].append(
+                        "Product gap xfail: Product gap (P-05): "
+                        "no handler or MCP path calls the compression guard yet"
+                    )
+                elif (
                     self.scenario_id == "spec-004-goal-revision"
                     and pattern == "previous"
                 ):
