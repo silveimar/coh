@@ -105,6 +105,10 @@ class CheckpointRepository(Protocol):
         """Add a new checkpoint."""
         ...
 
+    def update_archive_state(self, checkpoint: Checkpoint) -> None:
+        """Persist archive status and references of an existing checkpoint (I-12)."""
+        ...
+
     def get(self, checkpoint_id: UUID) -> Checkpoint | None:
         """Retrieve checkpoint by ID."""
         ...

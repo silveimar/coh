@@ -491,6 +491,20 @@ class COHHandlers:
             checkpoint,
         )
 
+        # Persist the archive outcome (reference or degraded status) in a
+        # follow-up write, after the checkpoint itself is committed. A failure
+        # here is logged and never blocks or rolls back the checkpoint (I-12).
+        try:
+            with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                uow.checkpoints.update_archive_state(checkpoint)
+                uow.commit()
+        except Exception:
+            logger.warning(
+                "Checkpoint archive state not persisted",
+                exc_info=True,
+                extra={"session_id": session_id},
+            )
+
         if archive_pointer is None and checkpoint.archive_status.value == "degraded":
             # Archive write failed - emit non-blocking warning (I-12)
             archive_warning = (

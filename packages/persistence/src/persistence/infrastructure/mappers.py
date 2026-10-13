@@ -491,6 +491,12 @@ class CheckpointMapper:
             checkpoint_reason=model.checkpoint_reason,
         )
 
+    @staticmethod
+    def update_archive_state(model: CheckpointModel, checkpoint: Checkpoint) -> None:
+        """Copy archive status and references only; other fields stay as added."""
+        model.archive_status = checkpoint.archive_status
+        model.archive_references = _serialize_for_json(checkpoint.archive_references)
+
 
 class DecisionMapper:
     """Map between Decision and DecisionModel."""

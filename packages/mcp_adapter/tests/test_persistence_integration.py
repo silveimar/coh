@@ -127,3 +127,67 @@ async def test_specify_work_blocked_when_archive_fails(handlers: COHHandlers):
     finally:
         # Restore permissions
         os.chmod(archive_dir, original_mode)
+
+
+@pytest.mark.asyncio
+async def test_create_checkpoint_persists_degraded_when_archive_fails(
+    handlers: COHHandlers,
+):
+    """
+    I-12: a failed archive write still creates the checkpoint, persists it as
+    degraded, and recovery (a fresh process) reports the degradation.
+    """
+    from execution_core.domain.enums import ArchiveStatus
+    from persistence.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
+
+    result = await handlers.create_session("test-project", "Task")
+    session_id = result[0]["text"].split("\n")[0].split(": ")[1]
+
+    archive_dir = handlers.project_root / ".coh" / "archive"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    original_mode = archive_dir.stat().st_mode
+    os.chmod(archive_dir, 0o000)
+
+    try:
+        result = await handlers.create_checkpoint(
+            session_id, restart_action="Resume after archive failure"
+        )
+    finally:
+        os.chmod(archive_dir, original_mode)
+
+    text = result[0]["text"]
+    assert "Archive status: degraded" in text
+    assert "record was not saved" in text
+
+    with SqlAlchemyUnitOfWork(handlers.session_factory) as uow:
+        latest = uow.checkpoints.get_latest_for_session(UUID(session_id))
+        assert latest is not None
+        assert latest.restart_action == "Resume after archive failure"
+        assert latest.archive_status == ArchiveStatus.DEGRADED
+
+    new_handlers = COHHandlers(handlers.project_root)
+    result = await new_handlers.recover_session(session_id)
+    assert "Archive status is degraded" in result[0]["text"]
+
+
+@pytest.mark.asyncio
+async def test_create_checkpoint_persists_archive_reference(handlers: COHHandlers):
+    """I-09: the checkpoint-created archive entry is referenced by the checkpoint."""
+    from execution_core.domain.enums import ArchiveStatus
+    from persistence.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
+
+    result = await handlers.create_session("test-project", "Task")
+    session_id = result[0]["text"].split("\n")[0].split(": ")[1]
+    session_uuid = UUID(session_id)
+
+    with SqlAlchemyUnitOfWork(handlers.session_factory) as uow:
+        before = uow.checkpoints.get_latest_for_session(session_uuid)
+        refs_before = len(before.archive_references) if before else 0
+
+    await handlers.create_checkpoint(session_id, restart_action="Resume")
+
+    with SqlAlchemyUnitOfWork(handlers.session_factory) as uow:
+        latest = uow.checkpoints.get_latest_for_session(session_uuid)
+        assert latest is not None
+        assert latest.archive_status == ArchiveStatus.HEALTHY
+        assert len(latest.archive_references) == refs_before + 1
