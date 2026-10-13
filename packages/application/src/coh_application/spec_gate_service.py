@@ -290,16 +290,12 @@ class SpecGateService:
             blockers.append("Missing DONE WHEN criteria")
 
         blocking_unknowns = [u for u in spec.unknowns if u.blocking and not u.resolved]
-        if blocking_unknowns:
-            for unknown in blocking_unknowns:
-                blocker_text = f"Unknown: {unknown.text}"
-                # Provide recommended default if not set
-                default_recommendation = (
-                    "Resolve before proceeding (inspection or clarification required)"
-                )
-                recommended = unknown.recommended_default or default_recommendation
-                blocker_text += f" (recommended: {recommended})"
-                blockers.append(blocker_text)
+        for unknown in blocking_unknowns:
+            # Generic recommended next step; Unknown has no per-question default.
+            blockers.append(
+                f"Unknown: {unknown.text} (recommended: Resolve before proceeding "
+                "(inspection or clarification required))"
+            )
 
         blocking_assumptions = [
             a

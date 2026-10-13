@@ -30,7 +30,6 @@ class Unknown(BaseModel):
     discoverable_via_inspection: bool = True
     resolved: bool = False
     resolution_value: str | None = None
-    recommended_default: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
