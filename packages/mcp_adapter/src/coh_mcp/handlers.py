@@ -1323,6 +1323,10 @@ Writes failed: {integration.writes_failed}
             spec_gate = SpecGateService(uow)
             spec_status = spec_gate.get_spec_status(session_uuid)
             spec = uow.specifications.get(UUID(spec_status["spec_id"]))
+            if spec is None:
+                return [
+                    {"type": "text", "text": f"Specification not found: {session_id}"}
+                ]
             session.current_spec = spec
 
             expected_version = session.version
