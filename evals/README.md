@@ -3,17 +3,19 @@
 **Suite version:** 1.1.0 · targets Behavioral Contract 1.1.0 · 19 scenarios  
 In the future repo this directory becomes `evals/` at the monorepo root; the pytest harness loads every `scenarios/*.yaml` and executes its steps against the Execution Core + a mock adapter with deterministic recorded fixtures.
 
-## Status (PR #10 · 2026-09-03)
+## Status (port of PR #10 · 2026-10-13)
 
-**19 scenarios:** 14 passing · 5 named skips (product gaps out of scope for Phase 0)
+**19 scenarios:** 13 passing · 1 named xfail · 5 named skips (product gaps out of scope for Phase 0)
 
-### Phase 0 Complete (6 scenarios closed)
+### Closed (5 scenarios)
 - ✅ verify-001 (I-03): Empty-evidence verify outputs `implemented` ceiling
 - ✅ verify-002 (I-03): Complete evidence outputs `done` and `3/3` accounting
-- ✅ spec-003 (I-02): Blocking unknowns include recommended defaults
-- ✅ arch-001 (I-12): Archive failure emits "record was not saved" warning
-- ✅ prose-004 (P-05): Compression guard rejects dropped negations/warnings
+- ✅ spec-003 (I-02): Each blocking unknown is listed with a generic recommended next step (not a per-question default)
+- ✅ arch-001 (I-12): Archive failure emits "record was not saved" warning and persists the checkpoint as degraded
 - ✅ prose-002 (P-03/P-04): Long output includes ≤3-line recap
+
+### Named Xfail (1 scenario)
+- ✖ prose-004 (P-05): `ProsePolicy.guard_compression` exists, but no handler or MCP path calls it yet
 
 ### Previously Passing (8 scenarios)
 - ✅ spec-001, spec-002, spec-004, plan-001, park-001, prose-001, prose-003, recover-001
@@ -26,7 +28,7 @@ In the future repo this directory becomes `evals/` at the monorepo root; the pyt
 
 ## Trade-offs
 
-1. **P-05 guard is product-level**: Implemented in `packages/prose` as reusable validation, not just harness testing
+1. **P-05 guard is product-level but unwired**: Implemented in `packages/prose` as reusable validation with unit tests; prose-004 stays xfail until output passes through it
 2. **Recap wording**: Uses "criteria satisfied" not "verified" to avoid I-03 checker false positives
 3. **Archive degradation is non-blocking**: I-12 warning text in output, workflow continues
 4. **Caveman integration deferred**: P-05 guard ready but Caveman pipeline integration is next slice
