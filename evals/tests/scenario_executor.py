@@ -554,20 +554,83 @@ class ScenarioExecutor:
 
     async def _run_prose_002_recap_threshold(self) -> None:
         """prose-002: Long explanation needs recap (P-04)."""
-        # If ProseRenderer lacks P-04, xfail in test_scenarios.py
-        await self._seed_to("EXECUTE")
+        # Create a spec with 5 criteria to exceed the recap threshold
+        result = await self.handlers.create_session(
+            "test_project",
+            "Add retry backoff with max-attempt cap",
+            "execute",
+        )
+        self._extract_session_id(result[0]["text"])
+        self.transitions.append("T1")
 
-        # Verification with long output
-        evidence_list = [
-            {"criterion_id": "c1", "type": "tool_verified", "content": "Pass"},
-            {"criterion_id": "c2", "type": "tool_verified", "content": "Pass"},
-            {"criterion_id": "c3", "type": "tool_verified", "content": "Pass"},
-            {"criterion_id": "c4", "type": "tool_verified", "content": "Pass"},
+        # Create spec with 5 criteria
+        result = await self.handlers.specify_work(
+            self.session_id,
+            what="Add exponential backoff to job retry loop",
+            why="Prevent queue hammering when jobs fail",
+            deliverable="worker.py with backoff and max attempts",
+            done_when=[
+                "Exponential backoff implemented",
+                "Max attempt cap implemented",
+                "Successful retries handled correctly",
+                "Failed jobs logged properly",
+                "Dead-letter queue handling after max attempts",
+            ],
+        )
+        self.handler_output.append(result[0]["text"])
+        self.transitions.extend(["T2", "T3"])
+
+        # Confirm spec
+        result = await self.handlers.confirm_spec(self.session_id, confirmed=True)
+        self.transitions.append("T4")
+
+        # Create minimal plan and execute
+        tasks = [
             {
-                "criterion_id": "c5",
-                "type": "tool_verified",
-                "content": "FAIL: test_dead_letter_after_max_attempts",
+                "name": "Implement backoff",
+                "action_literal": "Add exponential backoff",
+                "done_when_condition": "Backoff works",
+                "estimated_minutes": 30,
+                "energy": "medium",
+                "activation_friction": "low",
+                "dependencies": [],
+            }
+        ]
+        result = await self.handlers.plan_work(self.session_id, tasks=tasks)
+        result = await self.handlers.execute_task(self.session_id)
+        self.transitions.append("T6")
+
+        # Verification with 4 passing, 1 failing evidence (T8: back to EXECUTE)
+        evidence_list = [
+            {
+                "criterion_text": "Exponential backoff implemented",
+                "evidence_type": "tool_verified",
+                "authority": "tool_verified",
+                "result": "pass",
+                "summary": "Tests pass",
             },
+            {
+                "criterion_text": "Max attempt cap implemented",
+                "evidence_type": "tool_verified",
+                "authority": "tool_verified",
+                "result": "pass",
+                "summary": "Tests pass",
+            },
+            {
+                "criterion_text": "Successful retries handled correctly",
+                "evidence_type": "tool_verified",
+                "authority": "tool_verified",
+                "result": "pass",
+                "summary": "Tests pass",
+            },
+            {
+                "criterion_text": "Failed jobs logged properly",
+                "evidence_type": "tool_verified",
+                "authority": "tool_verified",
+                "result": "pass",
+                "summary": "Tests pass",
+            },
+            # Fifth criterion has NO evidence - will fail verification
         ]
 
         result = await self.handlers.verify_deliverable(
@@ -595,8 +658,8 @@ class ScenarioExecutor:
         """prose-004 (critical P-05): Protected fields preserved."""
         await self._seed_to("EXECUTE")
 
-        # P-05 guard would check agent-proposed prose for dropped negation/warnings
-        # If MCP has no P-05 seam, this scenario will xfail
+        # ProsePolicy.guard_compression exists, but no handler or MCP path calls
+        # it yet, so this scenario xfails (see validate_final_state)
 
     def validate_final_state(self) -> dict[str, Any]:
         """Validate expected outcomes."""
@@ -638,51 +701,16 @@ class ScenarioExecutor:
 
         for pattern in self.expected.get("must_include", []):
             if not re.search(pattern, full_output, re.IGNORECASE | re.DOTALL):
-                # Product gap patterns that should xfail, not fail
+                # Product gaps that should xfail, not fail
                 if (
-                    self.scenario_id == "verify-001-unsupported-claim"
-                    and pattern == "implemented"
-                ):
-                    results["passed"] = False
-                    results["failures"].append(
-                        "Product gap xfail: Product gap (I-03): "
-                        "empty-evidence verify does not render implemented"
-                    )
-                elif (
-                    self.scenario_id == "verify-002-evidence-done" and pattern == "3/3"
-                ):
-                    results["passed"] = False
-                    results["failures"].append(
-                        "Product gap xfail: Product gap (I-03): "
-                        "verification success prose lacks 3/3"
-                    )
-                elif (
-                    self.scenario_id == "spec-003-blocking-unknown"
-                    and pattern == "recommended"
-                ):
-                    results["passed"] = False
-                    results["failures"].append(
-                        "Product gap xfail: Product gap (I-02): "
-                        "blocked confirm_spec payload lacks recommended default"
-                    )
-                elif self.scenario_id == "arch-001-write-failure" and (
-                    pattern.lower() in ["record was not saved", "not saved"]
-                    or "not saved" in pattern.lower()
-                ):
-                    results["passed"] = False
-                    results["failures"].append(
-                        "Product gap xfail: Product gap (I-12): "
-                        "archive write failure does not emit 'record was not saved'"
-                    )
-                elif (
                     self.scenario_id == "prose-004-protected-fields"
                     and "do not run the migration" in pattern.lower()
                 ):
-                    # P-05 guard pattern - also a product gap
+                    # P-05 guard exists in coh_prose but is not wired into output
                     results["passed"] = False
                     results["failures"].append(
                         "Product gap xfail: Product gap (P-05): "
-                        "protected-field guard not wired in handlers"
+                        "no handler or MCP path calls the compression guard yet"
                     )
                 elif (
                     self.scenario_id == "spec-004-goal-revision"

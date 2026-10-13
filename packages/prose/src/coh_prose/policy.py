@@ -191,6 +191,25 @@ class ProsePolicy:
 
         return ProseValidationResult(valid=True)
 
+    def guard_compression(self, original: str, compressed: str) -> str:
+        """
+        P-05 compression guard: reject and re-emit original if protected fields dropped.
+
+        Args:
+            original: Original content with protected fields
+            compressed: Proposed compressed content
+
+        Returns:
+            Compressed content if valid, original content if validation fails
+        """
+        validation = self.validate_protected_fields(original, compressed)
+
+        if not validation.valid:
+            # I-06: Invalid render mutates nothing - re-emit original
+            return original
+
+        return compressed
+
     def is_recovery_or_foreground_exempt(self, context: str | None) -> bool:
         """
         P-06: Recovery/foreground context is exempt from P-01/P-02.

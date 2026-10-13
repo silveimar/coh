@@ -123,7 +123,7 @@ class TestSpecGateService:
 
         assert spec.readiness == Readiness.BLOCKED
         blockers = service._get_readiness_blockers(spec)
-        assert any("blocking unknown" in b for b in blockers)
+        assert any("Unknown:" in b and "recommended:" in b for b in blockers)
 
         spec.unknowns[0].resolved = True
         spec.update_computed_fields()
