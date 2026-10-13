@@ -428,6 +428,7 @@ class COHHandlers:
 
         ADDs checkpoint (never replaces). Sets spec_snapshot from session.current_spec.
         Copies archive_references from latest checkpoint (preserves I-09 provenance).
+        Attempts to archive checkpoint creation event (I-12: degrades on failure).
         """
         session_uuid = UUID(session_id)
 
@@ -481,6 +482,36 @@ class COHHandlers:
             uow.checkpoints.add(checkpoint)
             uow.commit()
 
+        # I-12: Attempt to archive checkpoint creation event (degrade-and-continue)
+        archive_warning = ""
+        archive_pointer = await self.archive_wiring.archive_agent_output(
+            session_uuid,
+            session.project_id,
+            f"Checkpoint created: {checkpoint.id}\nRestart action: {restart_action}",
+            checkpoint,
+        )
+
+        # Persist the archive outcome (reference or degraded status) in a
+        # follow-up write, after the checkpoint itself is committed. A failure
+        # here is logged and never blocks or rolls back the checkpoint (I-12).
+        try:
+            with SqlAlchemyUnitOfWork(self.session_factory) as uow:
+                uow.checkpoints.update_archive_state(checkpoint)
+                uow.commit()
+        except Exception:
+            logger.warning(
+                "Checkpoint archive state not persisted",
+                exc_info=True,
+                extra={"session_id": session_id},
+            )
+
+        if archive_pointer is None and checkpoint.archive_status.value == "degraded":
+            # Archive write failed - emit non-blocking warning (I-12)
+            archive_warning = (
+                "\n\nWarning: Archive record was not saved. "
+                "Checkpoint persisted but history is incomplete."
+            )
+
         state = checkpoint.lifecycle_state.value
         archive_status = checkpoint.archive_status.value
         return [
@@ -489,7 +520,7 @@ class COHHandlers:
                 "text": (
                     f"Checkpoint created: {checkpoint.id}\nState: {state}\n"
                     f"Restart action: {restart_action}\n"
-                    f"Archive status: {archive_status}"
+                    f"Archive status: {archive_status}{archive_warning}"
                 ),
             }
         ]
@@ -1183,8 +1214,40 @@ Writes failed: {integration.writes_failed}
         from execution_core.domain.commands import ConcurrencyError
         from execution_core.domain.enums import EvidenceAuthority, EvidenceResult
         from execution_core.domain.evidence import Evidence
-        from execution_core.policies.completion_policy import CompletionViolation
+        from execution_core.domain.specification import Specification
+        from execution_core.policies.completion_policy import (
+            CompletionPolicy,
+            CompletionViolation,
+        )
         from execution_core.state_machine.lifecycle import TransitionError
+
+        def criteria_accounting(
+            spec: Specification, evidence_objects: list[Evidence]
+        ) -> tuple[list[dict[str, str]], int]:
+            """Per-criterion status from CompletionPolicy (I-03), plus satisfied count.
+
+            A criterion counts as satisfied only with fresh, qualifying evidence;
+            otherwise its status is the policy's reason.
+            """
+            criteria_status: list[dict[str, str]] = []
+            satisfied_count = 0
+            for criterion in spec.done_when:
+                satisfied, reasons = CompletionPolicy.check_criterion_satisfied(
+                    criterion.id, evidence_objects, spec.revision
+                )
+                if satisfied:
+                    satisfied_count += 1
+                matching_ev = [
+                    e for e in evidence_objects if e.criterion_id == criterion.id
+                ]
+                criteria_status.append(
+                    {
+                        "criterion": criterion.text,
+                        "status": "satisfied" if satisfied else "; ".join(reasons),
+                        "evidence": matching_ev[0].summary if matching_ev else "none",
+                    }
+                )
+            return criteria_status, satisfied_count
 
         session_uuid = UUID(session_id)
 
@@ -1292,6 +1355,10 @@ Writes failed: {integration.writes_failed}
             spec_gate = SpecGateService(uow)
             spec_status = spec_gate.get_spec_status(session_uuid)
             spec = uow.specifications.get(UUID(spec_status["spec_id"]))
+            if spec is None:
+                return [
+                    {"type": "text", "text": f"Specification not found: {session_id}"}
+                ]
             session.current_spec = spec
 
             expected_version = session.version
@@ -1310,29 +1377,20 @@ Writes failed: {integration.writes_failed}
                 uow.sessions.update(session, expected_version)
                 uow.commit()
 
-                # Render verification success
+                # Render verification success with criterion accounting (I-03)
                 renderer = ProseRenderer()
-                criteria_status = []
-                for criterion in spec.done_when:
-                    matching_ev = [
-                        e for e in evidence_objects if e.criterion_id == criterion.id
-                    ]
-                    status = "satisfied" if matching_ev else "no evidence"
-                    evidence_summary = matching_ev[0].summary if matching_ev else "none"
-                    criteria_status.append(
-                        {
-                            "criterion": criterion.text,
-                            "status": status,
-                            "evidence": evidence_summary,
-                        }
-                    )
+                criteria_status, satisfied_count = criteria_accounting(
+                    spec, evidence_objects
+                )
 
                 verification = VerificationResult(
                     deliverable=spec.deliverable,
                     criteria_status=criteria_status,
-                    completion_state="complete",
+                    completion_state="done",
                     remaining_blockers=[],
                     next_action="Work is complete",
+                    satisfied_count=satisfied_count,
+                    total_count=len(spec.done_when),
                 )
 
                 rendered = renderer.render_verification(verification)
@@ -1346,6 +1404,11 @@ Writes failed: {integration.writes_failed}
 
             except CompletionViolation as e:
                 # T8: VERIFY → EXECUTE (failed verification)
+                # Use computed completion state from CompletionPolicy (I-03)
+                completion_state, _ = CompletionPolicy.compute_completion_state(
+                    spec.done_when, evidence_objects, spec.revision
+                )
+
                 command_t8 = Command(
                     idempotency_key=f"return-execute-{session_uuid}-{datetime.now(UTC).isoformat()}",
                     expected_version=session.version,
@@ -1355,29 +1418,20 @@ Writes failed: {integration.writes_failed}
                 uow.sessions.update(session, expected_version)
                 uow.commit()
 
-                # Render verification failure
+                # Render verification failure with honest ceiling
                 renderer = ProseRenderer()
-                criteria_status = []
-                for criterion in spec.done_when:
-                    matching_ev = [
-                        e for e in evidence_objects if e.criterion_id == criterion.id
-                    ]
-                    status = "satisfied" if matching_ev else "missing evidence"
-                    evidence_summary = matching_ev[0].summary if matching_ev else "none"
-                    criteria_status.append(
-                        {
-                            "criterion": criterion.text,
-                            "status": status,
-                            "evidence": evidence_summary,
-                        }
-                    )
+                criteria_status, satisfied_count = criteria_accounting(
+                    spec, evidence_objects
+                )
 
                 verification = VerificationResult(
                     deliverable=spec.deliverable,
                     criteria_status=criteria_status,
-                    completion_state="execute",
+                    completion_state=completion_state.value,
                     remaining_blockers=e.missing_criteria,
                     next_action="Continue execution to address missing criteria",
+                    satisfied_count=satisfied_count,
+                    total_count=len(spec.done_when),
                 )
 
                 rendered = renderer.render_verification(verification)

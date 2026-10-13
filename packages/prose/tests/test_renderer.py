@@ -139,9 +139,146 @@ class TestVerificationRendering:
 
         output = renderer.render_verification(verification)
 
-        assert "Criteria status:" in output
+        assert "CRITERIA_STATUS" in output
         assert "Evidence:" in output
         assert "pytest output" in output
+
+    def test_renders_criterion_accounting(self):
+        """Test I-03: Criterion-by-criterion accounting (n/m)."""
+        renderer = ProseRenderer()
+        verification = VerificationResult(
+            deliverable="Feature X",
+            criteria_status=[
+                {"criterion": "A", "status": "satisfied", "evidence": "yes"},
+                {"criterion": "B", "status": "satisfied", "evidence": "yes"},
+                {"criterion": "C", "status": "satisfied", "evidence": "yes"},
+            ],
+            completion_state="done",
+            satisfied_count=3,
+            total_count=3,
+            parked_count=0,
+        )
+
+        output = renderer.render_verification(verification)
+        assert "CRITERIA_STATUS: 3/3" in output
+
+    def test_renders_partial_satisfaction(self):
+        """Test partial criterion accounting (I-03)."""
+        renderer = ProseRenderer()
+        verification = VerificationResult(
+            deliverable="Feature Y",
+            criteria_status=[
+                {"criterion": "A", "status": "satisfied", "evidence": "yes"},
+                {"criterion": "B", "status": "missing evidence", "evidence": "none"},
+                {"criterion": "C", "status": "satisfied", "evidence": "yes"},
+            ],
+            completion_state="implemented",
+            satisfied_count=2,
+            total_count=3,
+            parked_count=0,
+        )
+
+        output = renderer.render_verification(verification)
+        assert "CRITERIA_STATUS: 2/3" in output
+
+    def test_adds_recap_for_long_verification(self):
+        """Test P-03/P-04: Recap added when verification exceeds threshold."""
+        renderer = ProseRenderer()
+        # Create a verification with many criteria
+        criteria_status = [
+            {
+                "criterion": f"Criterion {i}",
+                "status": "satisfied" if i < 4 else "missing evidence",
+                "evidence": f"Evidence {i}" if i < 4 else "none",
+            }
+            for i in range(5)
+        ]
+        verification = VerificationResult(
+            deliverable="Complex feature with many criteria",
+            criteria_status=criteria_status,
+            completion_state="implemented",
+            satisfied_count=4,
+            total_count=5,
+            next_action="Add evidence for Criterion 4",
+            parked_count=0,
+        )
+
+        output = renderer.render_verification(verification)
+        # Should have recap since it's a long output
+        assert "In short:" in output
+        assert "4/5" in output
+        assert "criteria satisfied" in output
+
+    def test_recap_avoids_verified_to_prevent_false_i03(self):
+        """Test that recap doesn't use 'verified' to avoid false I-03 checker hits."""
+        renderer = ProseRenderer()
+        criteria_status = [
+            {
+                "criterion": f"Criterion {i}",
+                "status": "satisfied",
+                "evidence": f"Evidence {i}",
+            }
+            for i in range(5)
+        ]
+        verification = VerificationResult(
+            deliverable="Feature Z",
+            criteria_status=criteria_status,
+            completion_state="done",
+            satisfied_count=5,
+            total_count=5,
+            parked_count=0,
+        )
+
+        output = renderer.render_verification(verification)
+        # Should use "criteria satisfied" not "verified" to avoid triggering I-03
+        assert "criteria satisfied" in output or "work complete" in output
+
+    def test_recap_claims_completion_only_when_state_is_done(self):
+        """I-03: equal counts never yield 'work complete' unless state is done."""
+        renderer = ProseRenderer()
+        criteria_status = [
+            {"criterion": f"Criterion {i}", "status": "satisfied", "evidence": "e"}
+            for i in range(5)
+        ]
+        verification = VerificationResult(
+            deliverable="Feature Z",
+            criteria_status=criteria_status,
+            completion_state="implemented",
+            satisfied_count=5,
+            total_count=5,
+            parked_count=0,
+        )
+
+        output = renderer.render_verification(verification)
+        assert "In short: 5/5 criteria satisfied" in output
+        assert "work complete" not in output
+
+    def test_recap_counts_any_unsatisfied_status_as_failing(self):
+        """Policy reasons (not a fixed label list) mark a criterion as failing."""
+        renderer = ProseRenderer()
+        criteria_status = [
+            {"criterion": f"Criterion {i}", "status": "satisfied", "evidence": "e"}
+            for i in range(4)
+        ]
+        criteria_status.append(
+            {
+                "criterion": "Criterion 4",
+                "status": "Evidence lacks sufficient authority",
+                "evidence": "agent report",
+            }
+        )
+        verification = VerificationResult(
+            deliverable="Feature Z",
+            criteria_status=criteria_status,
+            completion_state="implemented",
+            satisfied_count=4,
+            total_count=5,
+            next_action="Add qualifying evidence",
+            parked_count=0,
+        )
+
+        output = renderer.render_verification(verification)
+        assert "4/5 criteria satisfied; Criterion 4 fails" in output
 
 
 class TestDetourRecommendationRendering:

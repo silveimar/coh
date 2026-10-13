@@ -283,6 +283,13 @@ class SqlCheckpointRepository:
         model = CheckpointMapper.to_model(checkpoint)
         self._session.add(model)
 
+    def update_archive_state(self, checkpoint: Checkpoint) -> None:
+        """Persist archive status and references of an existing checkpoint (I-12)."""
+        model = self._session.get(CheckpointModel, checkpoint.id)
+        if not model:
+            raise ValueError(f"Checkpoint {checkpoint.id} not found")
+        CheckpointMapper.update_archive_state(model, checkpoint)
+
     def get(self, checkpoint_id: UUID) -> Checkpoint | None:
         """Retrieve checkpoint by ID."""
         stmt = select(CheckpointModel).where(CheckpointModel.id == checkpoint_id)
