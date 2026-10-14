@@ -35,7 +35,7 @@ apps/api/src/coh_api/
 
 ### Prerequisites
 
-- Python 3.12+
+- Python 3.15+
 - uv package manager
 
 ### Installation

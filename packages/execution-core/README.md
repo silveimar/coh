@@ -91,7 +91,7 @@ The domain layer is purely synchronous. Async boundaries belong at I/O (HTTP, MC
 All domain entities use Pydantic for:
 - Schema validation
 - JSON serialization (snake_case)
-- Type safety with Python 3.12+ type hints
+- Type safety with Python 3.15+ type hints
 
 ### No Framework Dependencies
 

@@ -2,7 +2,7 @@
 name = "coh-api"
 version = "0.1.0"
 description = "FastAPI HTTP adapter for COH application services"
-requires-python = ">=3.12"
+requires-python = ">=3.15"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",

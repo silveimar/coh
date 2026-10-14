@@ -19,7 +19,7 @@ Changing this file is an Ask-tier change for the fleet and goes through a PR lik
 
 ## Setup
 
-Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
+Requires Python 3.15+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 git clone <repository-url> && cd coh
