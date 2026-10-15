@@ -1,0 +1,34 @@
+{
+  "repos/synthetic/coh/pulls/1": {"number": 1, "commits": 1, "changed_files": 1, "additions": 1, "deletions": 1},
+  "repos/synthetic/coh/pulls/1/commits?page=1&per_page=100": [
+    {
+      "sha": "b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3",
+      "parents": [{"sha": "0000000000000000000000000000000000000000"}],
+      "commit": {"author": {"name": "Builder", "email": "builder@example.invalid"}}
+    }
+  ],
+  "repos/synthetic/coh/commits/b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3?page=1&per_page=100": {
+    "sha": "b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3",
+    "stats": {"total": 2, "additions": 1, "deletions": 1},
+    "files": [
+      {
+        "filename": ".github/workflows/ci.yml",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "changes": 2,
+        "patch": "@@ -36,2 +36,2 @@\n       - name: Run execution-core tests\n-        run: uv run pytest tests/packages/execution-core\n+        run: uv run pytest tests/packages/execution-core -x"
+      }
+    ]
+  },
+  "repos/synthetic/coh/pulls/1/files?page=1&per_page=100": [
+    {
+      "filename": ".github/workflows/ci.yml",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2,
+      "patch": "@@ -36,2 +36,2 @@\n       - name: Run execution-core tests\n-        run: uv run pytest tests/packages/execution-core\n+        run: uv run pytest tests/packages/execution-core -x"
+    }
+  ]
+}

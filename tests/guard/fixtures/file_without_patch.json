@@ -1,0 +1,32 @@
+{
+  "repos/synthetic/coh/pulls/1": {"number": 1, "commits": 1, "changed_files": 1, "additions": 4000, "deletions": 200},
+  "repos/synthetic/coh/pulls/1/commits?page=1&per_page=100": [
+    {
+      "sha": "b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4",
+      "parents": [{"sha": "0000000000000000000000000000000000000000"}],
+      "commit": {"author": {"name": "Builder", "email": "builder@example.invalid"}}
+    }
+  ],
+  "repos/synthetic/coh/commits/b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4?page=1&per_page=100": {
+    "sha": "b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4",
+    "stats": {"total": 4200, "additions": 4000, "deletions": 200},
+    "files": [
+      {
+        "filename": "packages/archive/src/archive/large_module.py",
+        "status": "modified",
+        "additions": 4000,
+        "deletions": 200,
+        "changes": 4200
+      }
+    ]
+  },
+  "repos/synthetic/coh/pulls/1/files?page=1&per_page=100": [
+    {
+      "filename": "packages/archive/src/archive/large_module.py",
+      "status": "modified",
+      "additions": 4000,
+      "deletions": 200,
+      "changes": 4200
+    }
+  ]
+}
