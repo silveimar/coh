@@ -11,6 +11,7 @@ from execution_core.domain.enums import (
     ActivationFriction,
     EnergyLevel,
     LifecycleState,
+    Readiness,
     SessionIntent,
     TaskStatus,
 )
@@ -170,6 +171,28 @@ class TestMissingSpecGuards:
 
         assert "no spec" in str(exc_info.value)
         assert session.lifecycle_state == LifecycleState.VERIFY
+
+
+class TestT7DoneWhenGuard:
+    """T7 needs done-when criteria even when stored readiness says READY."""
+
+    def test_ready_spec_without_done_when_is_rejected(self) -> None:
+        machine = StateMachine()
+        spec = Specification(
+            what="Add feature",
+            why="User needs it",
+            deliverable="Working feature",
+            done_when=[],
+            readiness=Readiness.READY,
+        )
+        session = _session(LifecycleState.EXECUTE, spec)
+
+        with pytest.raises(TransitionError) as exc_info:
+            machine.transition_to_verify(session, command=_command(session))
+
+        assert "no done-when criteria" in str(exc_info.value)
+        assert session.lifecycle_state == LifecycleState.EXECUTE
+        assert session.version == 1
 
 
 class TestT6NowDependencies:
