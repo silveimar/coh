@@ -86,13 +86,13 @@ curl http://localhost:8000/api/v1/foreground/{session_id}
 Run all API tests:
 
 ```bash
-uv run pytest apps/api/tests
+uv run pytest tests/apps/api
 ```
 
 Run with coverage:
 
 ```bash
-uv run pytest apps/api/tests --cov=apps/api/src --cov-report=term
+uv run pytest tests/apps/api --cov=apps/api/src --cov-report=term
 ```
 
 **Key test scenarios:**

@@ -75,7 +75,7 @@ Implement evidence-based completion so the system distinguishes Implemented, Tes
 * `apps/api/src/coh_api/application/verification_service.py` — record/evaluate evidence.
 * `packages/agent-runtime/src/agent_runtime/adapter.py` — tool/test evidence normalization (incl. `run_tests` task_id linkage per the PRD contract).
 * `apps/api/src/coh_api/infrastructure/repositories/evidence_repository.py` — evidence persistence.
-* `packages/execution-core/tests/test_completion_policy.py` — transition and staleness tests.
+* `tests/packages/execution-core/test_completion_policy.py` — transition and staleness tests.
 
 ### Data Flow
 

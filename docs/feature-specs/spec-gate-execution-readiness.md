@@ -77,7 +77,7 @@ Implement the mandatory specification gate that converts intent into WHAT, WHY, 
 * `apps/api/src/coh_api/application/question_policy.py` — question budget and recommendation formatting.
 * `packages/agent-runtime/src/agent_runtime/adapter.py` — inspection capability interface.
 * `apps/api/src/coh_api/infrastructure/repositories/spec_repository.py` — spec revisions.
-* `packages/execution-core/tests/test_readiness_policy.py` — readiness truth table.
+* `tests/packages/execution-core/test_readiness_policy.py` — readiness truth table.
 
 ### Data Flow
 

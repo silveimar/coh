@@ -47,7 +47,7 @@ uv run pyright
 uv run pytest
 ```
 
-CI (`.github/workflows/ci.yml`) currently runs ruff (check and format) on the whole repository (`.`), the tests per package with coverage, and the eval harness (`evals/tests`).
+CI (`.github/workflows/ci.yml`) currently runs ruff (check and format) on the whole repository (`.`), the tests per package with coverage, and the eval harness (`tests/evals`).
 
 **Known gaps, tracked for the foundation mission:**
 
@@ -61,7 +61,7 @@ A PR is done when **every** item holds:
 
 - [ ] The change matches the slice spec. Nothing beyond it. Any choice the spec did not dictate is listed in the PR description.
 - [ ] `ruff check`, `ruff format --check`, `pyright` and `pytest` pass locally, and CI is green.
-- [ ] The behavioral evals still pass their thresholds (`uv run pytest evals/tests`).
+- [ ] The behavioral evals still pass their thresholds (`uv run pytest tests/evals`).
 - [ ] Tests cover the change: every new policy, state-machine transition and invalid transition, persistence mapping or API behavior has a test. Execution Core coverage stays at or above 90%.
 - [ ] New code is typed. No new lint or type suppression without a one-line justification and a linked issue or test.
 - [ ] Layer rules hold: no FastAPI, SQLAlchemy, Huey, MCP or provider-SDK imports in `packages/execution-core`; routes and MCP tools call application services and never repositories.
@@ -102,7 +102,7 @@ Execution-semantics changes also get a `docs/decision-log.md` entry. The ADR REA
 
 ## Tests
 
-- pytest, with Hypothesis for state-machine and policy invariants. Test files are `test_*.py`, in each package's `tests/` directory.
+- pytest, with Hypothesis for state-machine and policy invariants. Test files are `test_*.py`, under `tests/` (`tests/packages/<package-dir>/`, `tests/apps/api/`, `tests/evals/`). Pytest settings live in `pytest.ini` and coverage settings in `.coveragerc`.
 - Ordinary CI never calls a live model provider. Use fakes or recorded fixtures.
 - Never disable, skip or weaken a test, linter or scanner to make a change pass. Fix the cause or raise it as a decision.
 - Tests, eval scenarios and the behavioral contract reference invariant IDs (I-01 to I-14) and prose rules (P-01 to P-06). Keep them in sync when you change one.

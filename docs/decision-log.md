@@ -101,3 +101,11 @@ Durable product/engineering decisions for the **Cognitive Operating Harness (COH
 - **Alternatives rejected:** 3.12+ with a CI matrix (doubles CI time to keep a promise no user needs); leaving 3.12+ untested.
 - **Reopen when:** a required dependency lacks 3.15 wheels, or COH ships a component meant to be imported by other projects.
 - **Decided:** 2026-10-14, Silver.
+
+## D14 - One protected test tree
+
+- **Question:** Tests live in eight places (each package's `tests/`, `apps/api/tests/`, `evals/`), with test config inside `pyproject.toml`. How can the fleet's builder be kept from editing the checks that judge its work?
+- **Selected:** All tests, eval scenarios, fixtures and test config live under `tests/`, with root `pytest.ini` and `.coveragerc`. `tests/**`, `conftest.py`, `pytest.ini`, `.coveragerc`, `tox.ini`, `setup.cfg`, `.github/workflows/**` and `.github/CODEOWNERS` are the protected check set.
+- **Rationale:** One path set is simple to protect and audit. Fleet decision H-87 (loop engineering): checks are written before the build by the lead seat and kept out of the builder's reach.
+- **Alternatives rejected:** protecting eight scattered paths; a separate checks repository (fork PRs on a public repo get no secrets to read it); a path-restriction ruleset (push rulesets need GitHub Team).
+- **Decided:** 2026-10-14, Silver.

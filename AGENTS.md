@@ -10,7 +10,7 @@ COH is a local-first, Python-based execution layer that helps solo AI-assisted d
 - `docs/decision-log.md`: durable decisions D1 onward. Check it before proposing a change that touches a recorded decision.
 - `docs/adr/`: architecture decision records and the template.
 - `docs/behavioral-contract.md`: state machine, invariants I-01 to I-14, transitions, output contract, prose rules P-01 to P-06.
-- `docs/eval-rubric.md` and `evals/`: scoring, release thresholds and the 19 scenario suite. Scenarios reference contract IDs; keep them in sync.
+- `docs/eval-rubric.md` and `tests/evals/`: scoring, release thresholds and the 19 scenario suite. Scenarios reference contract IDs; keep them in sync.
 - `docs/glossary.md`: canonical terminology. One definition per term; a rename or semantic change needs a decision-log entry.
 - `docs/feature-specs/`: the feature specs the slices implement.
 
@@ -26,7 +26,7 @@ packages/prose            prose rendering policy
 packages/mcp_adapter      MCP adapter (first adapter: Claude Code)
 packages/application      application services
 apps/api                  FastAPI HTTP adapter
-evals/                    behavioral scenarios and harness
+tests/                    all tests: packages/, apps/api/, evals/ (behavioral scenarios and harness)
 ```
 
 ## Commands
@@ -35,10 +35,10 @@ evals/                    behavioral scenarios and harness
 uv sync --all-packages
 uv run ruff check . && uv run ruff format --check .
 uv run pyright
-uv run pytest <package>/tests        # run per package until the root run is fixed
+uv run pytest                        # every test under tests/; one package: uv run pytest tests/packages/<package-dir>
 ```
 
-CI runs ruff on the whole repository and the tests per package (`.github/workflows/ci.yml`). Known gaps (Pyright not in CI, the root `pytest` run) are listed in `CONTRIBUTING.md`.
+CI runs ruff on the whole repository and the tests per package (`.github/workflows/ci.yml`). Known gaps (Pyright not in CI) are listed in `CONTRIBUTING.md`.
 
 ## Hard rules
 

@@ -13,9 +13,9 @@ from uuid import UUID
 import yaml
 
 from coh_mcp.handlers import COHHandlers
-from evals.tests.invariant_checkers import InvariantChecker, ProseRuleChecker
 from persistence.infrastructure.database import create_engine, get_session_factory
 from persistence.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
+from tests.evals.tests.invariant_checkers import InvariantChecker, ProseRuleChecker
 
 
 class ScenarioExecutor:
@@ -129,7 +129,7 @@ class ScenarioExecutor:
 
     async def _run_spec_001_vague_request(self) -> None:
         """spec-001: vague request with inspection."""
-        from evals.fixtures.inspection_findings import INSPECTION_FINDINGS
+        from tests.evals.fixtures.inspection_findings import INSPECTION_FINDINGS
 
         result = await self.handlers.create_session(
             "test_project",
@@ -529,7 +529,7 @@ class ScenarioExecutor:
 
     async def _run_prose_001_spec_evidence_first(self) -> None:
         """prose-001: Inspection evidence before WHAT (P-01)."""
-        from evals.fixtures.inspection_findings import INSPECTION_FINDINGS
+        from tests.evals.fixtures.inspection_findings import INSPECTION_FINDINGS
 
         result = await self.handlers.create_session(
             "test_project",

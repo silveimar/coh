@@ -76,7 +76,7 @@ Persist a recoverable record whenever an unfinished task is interrupted, so a us
 * `apps/api/src/coh_api/infrastructure/repositories/checkpoint_repository.py` — persistence updates.
 * `packages/archive/src/coh_archive/writer.py` — archive links for checkpoints.
 * `packages/agent-runtime/src/agent_runtime/adapter.py` — interruption and resume events.
-* `packages/execution-core/tests/test_recovery.py` and `apps/api/tests/test_recovery_service.py` — unit and integration coverage.
+* `tests/packages/execution-core/test_recovery.py` and `tests/apps/api/test_recovery_service.py` — unit and integration coverage.
 
 ### Data Flow
 
