@@ -117,3 +117,12 @@ Durable product/engineering decisions for the **Cognitive Operating Harness (COH
 - **Rationale:** Fleet decision H-87. `pull_request_target` runs the base copy, so a PR cannot change its own judge. Fail closed on any missing data.
 - **Limits:** The fleet and the owner share one GitHub identity, so the commit author is a convention the fleet's Never tier protects, not a credential. A separate fleet account would make it a credential.
 - **Decided:** 2026-10-14, Silver.
+
+## D13 - D12 reopened: dependency wheels on 3.15
+
+- **Question:** D12's reopen condition ("a required dependency lacks 3.15 wheels") was met at its own merge: five locked packages had no cp315 wheels. Keep 3.15, or lower the floor?
+- **Selected:** Keep Python 3.15+ (D12 stands). Locked versions are upgraded to releases that ship cp315 wheels (pydantic-core, markupsafe, httptools, uvloop). pyyaml has no cp315 wheel yet and builds from sdist; accepted while CI's cold `uv sync` passes.
+- **Rationale:** The gap was stale locked versions, not missing 3.15 support upstream. A 3.14 floor would undo D12 for one package that has a working source build.
+- **Alternatives rejected:** lowering the floor to 3.14 (wheels exist for all five); pinning to old versions without cp315 wheels.
+- **Reopen when:** a required dependency fails to install on 3.15 from wheel or sdist, or pyyaml's sdist build fails in CI.
+- **Decided:** 2026-10-14, Silver.
