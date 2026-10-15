@@ -27,6 +27,11 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-packages
 
+      # D13: pyyaml has no cp315 wheel and builds from its sdist; record
+      # whether that build includes the libyaml C extension (yaml.CLoader).
+      - name: Report pyyaml C extension
+        run: uv run python -c "import yaml; print('yaml.__with_libyaml__ =', yaml.__with_libyaml__)"
+
       - name: Run ruff lint
         run: uv run ruff check .
 
