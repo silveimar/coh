@@ -1,5 +1,5 @@
 {
-  "repos/synthetic/coh/pulls/1": {"number": 1, "commits": 1, "changed_files": 1},
+  "repos/synthetic/coh/pulls/1": {"number": 1, "commits": 1, "changed_files": 1, "additions": 0, "deletions": 0},
   "repos/synthetic/coh/pulls/1/commits?page=1&per_page=100": [
     {
       "sha": "b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5",
@@ -9,11 +9,14 @@
   ],
   "repos/synthetic/coh/commits/b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5?page=1&per_page=100": {
     "sha": "b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5",
+    "stats": {"total": 0, "additions": 0, "deletions": 0},
     "files": [
       {
         "filename": "tests/packages/prose/helpers.py",
         "previous_filename": "packages/prose/src/coh_prose/helpers.py",
         "status": "renamed",
+        "additions": 0,
+        "deletions": 0,
         "changes": 0
       }
     ]
@@ -23,6 +26,8 @@
       "filename": "tests/packages/prose/helpers.py",
       "previous_filename": "packages/prose/src/coh_prose/helpers.py",
       "status": "renamed",
+      "additions": 0,
+      "deletions": 0,
       "changes": 0
     }
   ]

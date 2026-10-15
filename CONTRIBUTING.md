@@ -114,7 +114,8 @@ The tests and the CI that judge a change are kept out of the builder's reach (D1
 - The protected check set is `tests/`, `evals/`, any `conftest.py`, `pytest.ini`, `.coveragerc`, `tox.ini`, `setup.cfg`, `.github/workflows/`, `.github/scripts/` and `.github/CODEOWNERS`.
 - Only the lead seat changes it, in checks commits authored as `COH lead seat <lead-seat@coh-fleet.invalid>`: `git commit --author="COH lead seat <lead-seat@coh-fleet.invalid>"`. No other seat may use that author.
 - The `checks-guard` job (`.github/workflows/checks-guard.yml`) fails a PR when a commit by any other author touches the set, or when an added line in such a commit weakens a check anywhere (for example `pragma: no cover` or a skip marker). The `checks-edits` job flags any deletion, rename or edit of existing protected lines; that needs owner approval.
-- Both jobs run the base branch copy of the guard and fail closed when the PR cannot be read completely. Merge commits fail the guard; rebase the branch instead.
+- Both jobs run the base branch copy of the guard and fail closed when the PR cannot be read completely: an API error, a missing or malformed field, a file whose content is unavailable, a patch that does not match its line counts, or totals that do not add up. Merge commits fail the guard; rebase the branch instead.
+- The weakening scan matches its literal tokens across whitespace and line continuations within added lines. It does not follow aliases or dynamic code; review still has to catch those.
 
 ## Security
 
