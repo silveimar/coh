@@ -97,12 +97,11 @@ When persisting entities with dependencies, commit parents before children.
 ## Testing
 
 ```bash
-# Run all persistence tests
-cd packages/persistence
-uv run pytest tests/ -v
+# Run all persistence tests (from the repository root)
+uv run pytest tests/packages/persistence -v
 
 # Run crash/restart test specifically
-uv run pytest tests/test_crash_restart.py -v
+uv run pytest tests/packages/persistence/test_crash_restart.py -v
 ```
 
 The crash/restart test (`test_crash_restart.py`) proves that:

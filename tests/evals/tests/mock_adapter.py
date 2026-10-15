@@ -7,7 +7,7 @@ Implements capabilities from setup.capabilities only.
 from typing import Any
 
 from coh_mcp.errors import CapabilityNotImplementedError
-from evals.fixtures.inspection_findings import INSPECTION_FINDINGS
+from tests.evals.fixtures.inspection_findings import INSPECTION_FINDINGS
 
 
 class MockAdapter:

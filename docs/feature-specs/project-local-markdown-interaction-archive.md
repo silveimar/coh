@@ -122,8 +122,8 @@ Fix the failing authentication test.
 * `packages/archive/src/coh_archive/paths.py` — project-root path resolution, default directory (`.coh/archive/`), external-path enforcement, safe filename generation.
 * `packages/archive/src/coh_archive/markdown.py` — append-only Markdown formatting, front-matter creation/update, atomic write handling, rotation, artifact writing, per-session write serialization.
 * `packages/archive/src/coh_archive/service.py` — public `archive_interaction()`, `archive_tool_event()`, and `read_session_archive()` service API.
-* `packages/archive/tests/test_markdown.py` — unit tests for format, append order, rotation, atomic/incomplete-entry behavior, payload artifacts.
-* `packages/archive/tests/test_paths.py` — unit tests for default path, relative custom path, traversal rejection, permitted external path behavior.
+* `tests/packages/archive/test_markdown.py` — unit tests for format, append order, rotation, atomic/incomplete-entry behavior, payload artifacts.
+* `tests/packages/archive/test_paths.py` — unit tests for default path, relative custom path, traversal rejection, permitted external path behavior.
 * `packages/execution-core/src/execution_core/domain/checkpoint.py` — extend checkpoint state with `archive_status`, `archive_ref`, and `archive_refs` when a checkpoint spans rotated archive files.
 * `apps/api/src/coh_api/application/checkpoint_service.py` — accept and persist the latest archive pointer without making checkpoint success dependent on archive success.
 * `apps/api/src/coh_api/infrastructure/config.py` — add and validate the `archive` configuration block and defaults.

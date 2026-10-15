@@ -11,4 +11,4 @@ dist/
 build/
 
 # eval run results (append-only, not committed)
-evals/results/
+tests/evals/results/

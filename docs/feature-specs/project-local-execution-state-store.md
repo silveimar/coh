@@ -79,7 +79,7 @@ Create the canonical project-local state store for goals, specifications, tasks,
 * `apps/api/src/coh_api/application/exporter.py` — portable snapshot/export.
 * `apps/api/src/coh_api/infrastructure/project_paths.py` — configurable data location.
 * `migrations/` — Alembic revisions for every schema change.
-* `apps/api/tests/test_state_store.py` — persistence and recovery tests (incl. mid-write crash repair).
+* `tests/apps/api/test_state_store.py` — persistence and recovery tests (incl. mid-write crash repair).
 
 ### Data Flow
 
