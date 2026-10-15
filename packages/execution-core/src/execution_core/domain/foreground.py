@@ -47,7 +47,7 @@ class Foreground(BaseModel):
 
         return len(violations) == 0, violations
 
-    def create_revision(self) -> "Foreground":
+    def create_revision(self) -> Foreground:
         """Create a new foreground revision."""
         new_fg = self.model_copy(deep=True)
         new_fg.revision = self.revision + 1

@@ -116,7 +116,7 @@ class TaskProgressRecord(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     revision: int = 1
 
-    def create_revision(self) -> "TaskProgressRecord":
+    def create_revision(self) -> TaskProgressRecord:
         """Create a new revision superseding this one."""
         new_record = self.model_copy(deep=True)
         new_record.revision = self.revision + 1

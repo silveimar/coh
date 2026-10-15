@@ -121,7 +121,7 @@ class Specification(BaseModel):
         self.readiness = self.compute_readiness()
         self.updated_at = datetime.now(UTC)
 
-    def create_revision(self) -> "Specification":
+    def create_revision(self) -> Specification:
         """Create a new revision with incremented revision number."""
         new_spec = self.model_copy(deep=True)
         new_spec.id = uuid4()

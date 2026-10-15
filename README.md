@@ -30,7 +30,7 @@ COH (Cognitive Operating Harness) is a local-first execution layer that helps so
 
 ### Prerequisites
 
-- Python 3.12+
+- Python 3.15+
 - [uv](https://docs.astral.sh/uv/) package manager
 
 ### Installation

@@ -22,7 +22,7 @@ class Checkpoint(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     session_id: UUID
     lifecycle_state: LifecycleState
-    spec_snapshot: "Specification | None" = None
+    spec_snapshot: Specification | None = None
     spec_id: UUID | None = None
     spec_revision: int | None = None
     current_task_id: UUID | None = None

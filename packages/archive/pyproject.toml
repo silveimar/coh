@@ -2,7 +2,7 @@
 name = "coh-archive"
 version = "0.1.0"
 description = "COH Markdown Archive - append-only interaction recording"
-requires-python = ">=3.12"
+requires-python = ">=3.15"
 dependencies = [
     "pydantic>=2.9.0",
     "pyyaml>=6.0",
