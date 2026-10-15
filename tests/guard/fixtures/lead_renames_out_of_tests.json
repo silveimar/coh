@@ -1,0 +1,18 @@
+{
+  "repos/synthetic/coh/pulls/1": {"number": 1, "commits": 1, "changed_files": 1},
+  "repos/synthetic/coh/pulls/1/commits?page=1&per_page=100": [
+    {
+      "sha": "1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+      "parents": [{"sha": "0000000000000000000000000000000000000000"}],
+      "commit": {"author": {"name": "COH lead seat", "email": "lead-seat@coh-fleet.invalid"}}
+    }
+  ],
+  "repos/synthetic/coh/pulls/1/files?page=1&per_page=100": [
+    {
+      "filename": "docs/examples/sample_scenario.yaml",
+      "previous_filename": "tests/evals/scenarios/sample_scenario.yaml",
+      "status": "renamed",
+      "changes": 0
+    }
+  ]
+}

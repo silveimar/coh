@@ -57,6 +57,9 @@ jobs:
       - name: Run eval harness
         run: uv run pytest tests/evals --tb=short
 
+      - name: Run checks-guard tests
+        run: uv run pytest tests/guard
+
       - name: Upload coverage reports
         uses: codecov/codecov-action@v5
         if: github.event_name == 'pull_request'

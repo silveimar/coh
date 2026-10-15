@@ -1,0 +1,45 @@
+name: checks-guard
+
+# H-87 / D15. pull_request_target runs the base branch copy of this workflow
+# and of .github/scripts/checks_guard.py, so a PR cannot change the guard that
+# judges it. Never check out, install or run PR code in this workflow: the
+# checkout below uses the default (base) ref, and the guard reads the PR
+# through the REST API only.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  checks-guard:
+    name: checks-guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Guard the protected check set
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 .github/scripts/checks_guard.py guard
+
+  # Not a required check until the repository is public (Nov 1); then it gates
+  # on owner approval through the checks-approval environment.
+  checks-edits:
+    name: checks-edits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Flag edits to existing protected lines
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 .github/scripts/checks_guard.py edits
