@@ -1,4 +1,4 @@
-"""Tests for prose renderer."""
+"""Tests for prose renderer (throwaway guard probe, do not merge)."""
 
 import pytest
 
