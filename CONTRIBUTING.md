@@ -107,6 +107,15 @@ Execution-semantics changes also get a `docs/decision-log.md` entry. The ADR REA
 - Never disable, skip or weaken a test, linter or scanner to make a change pass. Fix the cause or raise it as a decision.
 - Tests, eval scenarios and the behavioral contract reference invariant IDs (I-01 to I-14) and prose rules (P-01 to P-06). Keep them in sync when you change one.
 
+## Fleet: protected checks
+
+The tests and the CI that judge a change are kept out of the builder's reach (D14, D15):
+
+- The protected check set is `tests/`, `evals/`, any `conftest.py`, `pytest.ini`, `.coveragerc`, `tox.ini`, `setup.cfg`, `.github/workflows/`, `.github/scripts/` and `.github/CODEOWNERS`.
+- Only the lead seat changes it, in checks commits authored as `COH lead seat <lead-seat@coh-fleet.invalid>`: `git commit --author="COH lead seat <lead-seat@coh-fleet.invalid>"`. No other seat may use that author.
+- The `checks-guard` job (`.github/workflows/checks-guard.yml`) fails a PR when a commit by any other author touches the set, or when an added line in such a commit weakens a check anywhere (for example `pragma: no cover` or a skip marker). The `checks-edits` job flags any deletion, rename or edit of existing protected lines; that needs owner approval.
+- Both jobs run the base branch copy of the guard and fail closed when the PR cannot be read completely. Merge commits fail the guard; rebase the branch instead.
+
 ## Security
 
 - Dependencies are pinned through `uv.lock`, which is committed.

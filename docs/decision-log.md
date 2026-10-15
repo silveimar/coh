@@ -109,3 +109,11 @@ Durable product/engineering decisions for the **Cognitive Operating Harness (COH
 - **Rationale:** One path set is simple to protect and audit. Fleet decision H-87 (loop engineering): checks are written before the build by the lead seat and kept out of the builder's reach.
 - **Alternatives rejected:** protecting eight scattered paths; a separate checks repository (fork PRs on a public repo get no secrets to read it); a path-restriction ruleset (push rulesets need GitHub Team).
 - **Decided:** 2026-10-14, Silver.
+
+## D15 - checks-guard
+
+- **Question:** The builder writes code and could also edit the tests and CI that judge it. Instructions forbid it; nothing enforces it on GitHub.
+- **Selected:** A required `checks-guard` job on `pull_request_target` that reads the PR through the API and fails when a protected path (D14) changes in a commit not authored by the lead seat, or when an added line weakens a check anywhere. A second job, `checks-edits`, flags edits or deletions of existing protected lines; from Nov 1 (public repo) it gates on owner approval through the `checks-approval` environment.
+- **Rationale:** Fleet decision H-87. `pull_request_target` runs the base copy, so a PR cannot change its own judge. Fail closed on any missing data.
+- **Limits:** The fleet and the owner share one GitHub identity, so the commit author is a convention the fleet's Never tier protects, not a credential. A separate fleet account would make it a credential.
+- **Decided:** 2026-10-14, Silver.
