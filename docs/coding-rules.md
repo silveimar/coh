@@ -62,13 +62,13 @@ apps/api/src/coh_api/
 ## Project Status
 
 - Maturity: Prototype
-- Key technologies: Python 3.12+, FastAPI, Pydantic v2, SQLAlchemy 2, Alembic, SQLite (WAL), Huey, MCP; React, TypeScript, Vite, TanStack Query (Phase 3); OpenAPI 3.1, pytest, Hypothesis, Ruff, Pyright, Vitest, Playwright.
+- Key technologies: Python 3.15+, FastAPI, Pydantic v2, SQLAlchemy 2, Alembic, SQLite (WAL), Huey, MCP; React, TypeScript, Vite, TanStack Query (Phase 3); OpenAPI 3.1, pytest, Hypothesis, Ruff, Pyright, Vitest, Playwright.
 - Monorepo: yes — uv workspace (Python) + pnpm workspace (TypeScript).
 
 ## Tech Stack & Conventions
 
 - **Framework:** FastAPI backend with REST + SSE; OpenAPI 3.1 generated from routes. No TypeScript backend or BFF without a documented frontend-specific need.
-- **Language:** Python 3.12+ with modern typing and explicit domain types; TypeScript strict mode for frontend code.
+- **Language:** Python 3.15+ with modern typing and explicit domain types; TypeScript strict mode for frontend code.
 - **Package managers:** uv for all Python operations; pnpm for all TypeScript operations. Commit both lockfiles.
 - **Database:** SQLite for local-first persistence; verify WAL mode. PostgreSQL migration is a documented infrastructure change (compatibility checks, schema tests, staged Alembic upgrade) — never a domain-model rewrite.
 - **ORM:** SQLAlchemy 2 declarative models behind explicit repositories/unit-of-work. Never expose ORM entities through the API or domain layer.

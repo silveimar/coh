@@ -173,7 +173,7 @@ class UnitOfWork(Protocol):
         """Rollback the transaction."""
         ...
 
-    def __enter__(self) -> "UnitOfWork":
+    def __enter__(self) -> UnitOfWork:
         """Enter context manager."""
         ...
 

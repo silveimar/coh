@@ -2,7 +2,7 @@
 name = "execution-core"
 version = "0.1.0"
 description = "COH Execution Core - deterministic domain model and lifecycle"
-requires-python = ">=3.12"
+requires-python = ">=3.15"
 dependencies = [
     "pydantic>=2.9.0",
 ]

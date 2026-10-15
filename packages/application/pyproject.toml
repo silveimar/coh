@@ -2,7 +2,7 @@
 name = "application"
 version = "0.1.0"
 description = "COH Application Services - spec gate and foreground execution composition"
-requires-python = ">=3.12"
+requires-python = ">=3.15"
 dependencies = [
     "execution-core",
     "persistence",

@@ -92,3 +92,12 @@ Durable product/engineering decisions for the **Cognitive Operating Harness (COH
 - **Alternatives rejected:** Reordering §4 blocks themselves (breaks navigation/recovery function, MAJOR bump, eval churn); encoding mild signals as rules (risk of hardening context-dependent preferences); leaving CRP as informal guidance (untestable, contradicts Phase 0 method).
 - **Reopen when:** Retests across energy states (see profile Retest Plan) contradict a strong signal; recovery-mode usage shows the P-06 precedence is wrong; or comprehension/speed testing diverges from preference results.
 - **Decided:** 2026-09-01, Silver.
+
+## D12 - Python floor 3.15 (amends D2)
+
+- **Question:** D2 set "Python 3.12+". CI and the dev runtime run only 3.15, so the 3.12 promise is untested. Keep 3.12+ with a test matrix, or raise the floor?
+- **Selected:** Python 3.15+. `requires-python = ">=3.15"`, ruff `target-version = "py315"`. The rest of D2's stack is unchanged.
+- **Rationale:** COH is an application, not a library, so older interpreters buy nothing. Python has no LTS line; 3.15 (released 2026-10-01) has the longest support window. One tested version matches what CI runs.
+- **Alternatives rejected:** 3.12+ with a CI matrix (doubles CI time to keep a promise no user needs); leaving 3.12+ untested.
+- **Reopen when:** a required dependency lacks 3.15 wheels, or COH ships a component meant to be imported by other projects.
+- **Decided:** 2026-10-14, Silver.

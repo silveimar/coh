@@ -22,7 +22,7 @@ class SqlAlchemyUnitOfWork:
         self._session_factory = session_factory
         self._session: Session | None = None
 
-    def __enter__(self) -> "SqlAlchemyUnitOfWork":
+    def __enter__(self) -> SqlAlchemyUnitOfWork:
         """Start a new database session."""
         self._session = self._session_factory()
         self.sessions = SqlExecutionSessionRepository(self._session)
