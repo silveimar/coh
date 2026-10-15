@@ -77,7 +77,7 @@ Persist meaningful decisions with the chosen option, rationale, alternatives, ev
 * `apps/api/src/coh_api/application/recovery_service.py` — relevant-decision lookup.
 * `apps/api/src/coh_api/infrastructure/repositories/decision_repository.py` — persistence and indexes.
 * `packages/archive/src/coh_archive/writer.py` — decision archive events.
-* `packages/execution-core/tests/test_decision.py` and `apps/api/tests/test_decision_service.py` — lifecycle tests.
+* `tests/packages/execution-core/test_decision.py` and `tests/apps/api/test_decision_service.py` — lifecycle tests.
 
 ### Data Flow
 

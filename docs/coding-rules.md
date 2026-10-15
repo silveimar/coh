@@ -35,7 +35,7 @@ Polyglot monorepo: uv workspace for Python, pnpm workspace for TypeScript.
 ├── frontend/
 │   └── generated-api/       # Generated TypeScript OpenAPI client; do not edit
 ├── migrations/              # Alembic migration environment and revisions
-├── evals/                   # Behavioral evaluations and fixtures (Phase 0 suite)
+├── tests/                   # All tests; tests/evals/ holds the behavioral evaluations and fixtures (Phase 0 suite)
 ├── docs/                    # Architecture and implementation documentation
 ├── pyproject.toml           # Root uv workspace configuration
 ├── uv.lock                  # Committed Python dependency lockfile

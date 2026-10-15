@@ -15,7 +15,7 @@ COH (Cognitive Operating Harness) is a local-first execution layer that helps so
 │   ├── decision-log.md        # Durable product decisions D1...D11
 │   ├── coding-rules.md        # Engineering standards
 │   └── feature-specs/         # Feature specifications
-└── evals/                     # Behavioral test scenarios
+└── tests/                     # All tests: packages/, apps/ and evals/ (behavioral scenarios)
 ```
 
 ## Core Principles
@@ -48,24 +48,27 @@ uv sync --all-packages
 
 ### Running Tests
 
-Run the tests per package. A single root `uv run pytest` does not work yet,
-because two packages' `tests/conftest.py` files collide.
+All tests live under `tests/`. The pytest settings are in `pytest.ini` and the
+coverage settings in `.coveragerc`.
 
 ```bash
+# Run every test, including the eval harness
+uv run pytest
+
 # Run each package's tests
-uv run pytest packages/execution-core/tests
-uv run pytest packages/persistence/tests
-uv run pytest packages/archive/tests
-uv run pytest packages/prose/tests
-uv run pytest packages/mcp_adapter/tests
-uv run pytest packages/application/tests
-uv run pytest apps/api/tests
+uv run pytest tests/packages/execution-core
+uv run pytest tests/packages/persistence
+uv run pytest tests/packages/archive
+uv run pytest tests/packages/prose
+uv run pytest tests/packages/mcp_adapter
+uv run pytest tests/packages/application
+uv run pytest tests/apps/api
 
 # Run the behavioral eval harness
-uv run pytest evals/tests
+uv run pytest tests/evals
 
 # Run with coverage
-uv run pytest packages/execution-core/tests --cov=packages/execution-core/src
+uv run pytest tests/packages/execution-core --cov=packages/execution-core/src
 
 # Run linting (the same commands CI runs)
 uv run ruff check .

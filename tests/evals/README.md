@@ -44,7 +44,7 @@ In the future repo this directory becomes `evals/` at the monorepo root; the pyt
 ## Layout
 
 ```
-evals/
+tests/evals/
 ├── README.md                 # this file
 ├── schema/
 │   └── scenario.schema.yaml  # scenario file format v1.1.0 (documented schema)

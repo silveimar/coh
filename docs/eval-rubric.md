@@ -7,7 +7,7 @@ Methodology salvaged from the deprecated CES Product Spec (see Decision Log D1) 
 
 Two independent layers, never conflated:
 
-1. **Contract conformance (automated):** scenario suite in `evals/scenarios/` run against the harness; each scenario asserts state transitions, invariant IDs, required/forbidden output content, and forbidden actions. Binary pass/fail per assertion.
+1. **Contract conformance (automated):** scenario suite in `tests/evals/scenarios/` run against the harness; each scenario asserts state transitions, invariant IDs, required/forbidden output content, and forbidden actions. Binary pass/fail per assertion.
 2. **Output quality (rubric, human-scored):** blind rating of COH outputs from scenario runs on the five dimensions below. Used for release gating and regression comparison across prompt/policy revisions.
 
 ## 2. Rubric dimensions

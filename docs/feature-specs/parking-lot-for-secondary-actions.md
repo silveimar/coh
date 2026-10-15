@@ -76,7 +76,7 @@ Capture secondary actions, follow-ups, and side discoveries without disrupting t
 * `apps/api/src/coh_api/application/parking_service.py` — capture, promote, dismiss, review.
 * `apps/api/src/coh_api/infrastructure/repositories/parking_repository.py` — persistence.
 * `packages/archive/src/coh_archive/writer.py` — event entries.
-* `packages/execution-core/tests/test_parking_policy.py` and `apps/api/tests/test_parking_service.py` — lifecycle tests.
+* `tests/packages/execution-core/test_parking_policy.py` and `tests/apps/api/test_parking_service.py` — lifecycle tests.
 
 ### Data Flow
 

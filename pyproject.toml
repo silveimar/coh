@@ -54,30 +54,3 @@ reportMissingTypeStubs = false
 reportUnknownMemberType = false
 reportUnknownVariableType = false
 reportUnknownArgumentType = false
-
-[tool.pytest.ini_options]
-testpaths = ["packages/*/tests", "apps/*/tests", "evals/tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "--strict-markers"
-markers = [
-    "asyncio: mark test as async",
-]
-asyncio_default_fixture_loop_scope = "function"
-
-[tool.coverage.run]
-source = ["packages/*/src", "apps/*/src"]
-omit = ["*/tests/*", "*/__pycache__/*"]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if __name__ == .__main__.:",
-    "if TYPE_CHECKING:",
-    "class .*\\bProtocol\\):",
-    "@(abc\\.)?abstractmethod",
-]

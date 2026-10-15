@@ -82,7 +82,7 @@ Create the focused execution foreground that shows exactly one current task and 
 * `apps/api/src/coh_api/application/foreground_service.py` — calculate and promote foreground.
 * `apps/api/src/coh_api/infrastructure/repositories/task_repository.py` — foreground persistence.
 * `apps/api/src/coh_api/api/schemas/foreground.py` — output contract (read model).
-* `packages/execution-core/tests/test_foreground_policy.py` — ordering and transition tests.
+* `tests/packages/execution-core/test_foreground_policy.py` — ordering and transition tests.
 
 ### Data Flow
 
