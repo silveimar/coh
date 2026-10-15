@@ -35,10 +35,10 @@ tests/                    all tests: packages/, apps/api/, evals/ (behavioral sc
 uv sync --all-packages
 uv run ruff check . && uv run ruff format --check .
 uv run pyright
-uv run pytest <package>/tests        # run per package until the root run is fixed
+uv run pytest                        # every test under tests/; one package: uv run pytest tests/packages/<package-dir>
 ```
 
-CI runs ruff on the whole repository and the tests per package (`.github/workflows/ci.yml`). Known gaps (Pyright not in CI, the root `pytest` run) are listed in `CONTRIBUTING.md`.
+CI runs ruff on the whole repository and the tests per package (`.github/workflows/ci.yml`). Known gaps (Pyright not in CI) are listed in `CONTRIBUTING.md`.
 
 ## Hard rules
 

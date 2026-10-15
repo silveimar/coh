@@ -63,7 +63,7 @@ A release candidate (any change to prompts, policies, state machine, or adapter 
 ## 4. Review process
 
 1. Every prompt/policy/contract revision runs the full suite in CI (automated layer).
-2. Human scoring: sample ≥20 outputs per run (or all, if fewer), scored blind — rater sees output + scenario context, not the revision label. Solo-dev adaptation: score in a separate session from authoring, using the anchors above; record scores in `evals/results/` with model, prompt version, contract version, scenario ID, and per-dimension scores.
+2. Human scoring: sample ≥20 outputs per run (or all, if fewer), scored blind — rater sees output + scenario context, not the revision label. Solo-dev adaptation: score in a separate session from authoring, using the anchors above; record scores in `tests/evals/results/` with model, prompt version, contract version, scenario ID, and per-dimension scores.
 3. Disagreement with an anchor example → update the anchor via PR, never bend a score.
 4. Record every run: date, git ref, model/provider, prompt version, suite version, conformance %, rubric distribution, threshold verdicts. Results are append-only.
 

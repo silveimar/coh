@@ -70,14 +70,14 @@ Tests cover:
 - **Coverage:** ≥90% lines in execution-core
 
 ```bash
-# Run tests
-uv run pytest tests
+# Run tests (from the repository root)
+uv run pytest tests/packages/execution-core
 
 # With coverage
-uv run pytest tests --cov --cov-report=html
+uv run pytest tests/packages/execution-core --cov --cov-report=html
 
 # Property-based tests only
-uv run pytest tests/test_properties.py
+uv run pytest tests/packages/execution-core/test_properties.py
 ```
 
 ## Design Choices

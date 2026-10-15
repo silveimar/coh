@@ -178,13 +178,13 @@ elif result.outcome == WriteOutcome.ARCHIVE_WRITE_FAILED:
 **Run tests:**
 
 ```bash
-uv run pytest packages/archive/tests -v
+uv run pytest tests/packages/archive -v
 ```
 
 **Coverage:**
 
 ```bash
-uv run pytest packages/archive/tests --cov=coh_archive --cov-report=term-missing
+uv run pytest tests/packages/archive --cov=coh_archive --cov-report=term-missing
 ```
 
 ## Next Actions

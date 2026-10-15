@@ -182,7 +182,7 @@ Don't: update a repository directly from a route or MCP tool.
 
 ### Frameworks
 
-- Unit/integration: pytest, test files named `test_*.py` (or `*_test.py` — pick one per package and stay consistent), colocated or in a parallel `tests/` directory.
+- Unit/integration: pytest, test files named `test_*.py` (or `*_test.py` — pick one per package and stay consistent), under the root `tests/` directory, mirroring the source tree.
 - Property-based: Hypothesis for state-machine and policy invariants.
 - E2E: MCP-adapter critical flows in v0.1; Playwright for web workflows in Phase 3.
 - Static analysis: Pyright for Python; `tsc --noEmit` for TypeScript.

@@ -1,7 +1,7 @@
 # COH Behavioral Eval Suite
 
 **Suite version:** 1.1.0 · targets Behavioral Contract 1.1.0 · 19 scenarios  
-In the future repo this directory becomes `evals/` at the monorepo root; the pytest harness loads every `scenarios/*.yaml` and executes its steps against the Execution Core + a mock adapter with deterministic recorded fixtures.
+In this repository the directory is `tests/evals/`; the pytest harness loads every `scenarios/*.yaml` and executes its steps against the Execution Core + a mock adapter with deterministic recorded fixtures.
 
 ## Status (port of PR #10 · 2026-10-13)
 

@@ -1,7 +1,7 @@
 # COH — Behavioral Contract v1.1
 
 **Phase 0 deliverable** · 2026-08-19 · amended 2026-09-01 (§5, D11) · Contract version: `1.1.0`
-Companion: `../chatprd-docs/COH-PRD.md` (requirements) · `../chatprd-docs/COH-Technical-Design.md` (implementation) · `../COH-Decision-Log.md` (D1–D11) · `../COH-Cognitive-Readability-Profile.md` (prose policy source) · `evals/` (scenario suite) · `COH-Eval-Rubric.md` (scoring)
+Companion: `../chatprd-docs/COH-PRD.md` (requirements) · `../chatprd-docs/COH-Technical-Design.md` (implementation) · `../COH-Decision-Log.md` (D1–D11) · `../COH-Cognitive-Readability-Profile.md` (prose policy source) · `tests/evals/` (scenario suite) · `COH-Eval-Rubric.md` (scoring)
 
 This document is the testable definition of how COH behaves. Every invariant has a stable ID (`I-nn`) referenced by eval scenarios; changing any invariant requires a Decision Log entry and a contract version bump. In the future repo this file lives at `docs/behavioral-contract.md`.
 

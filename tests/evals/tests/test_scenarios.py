@@ -1,6 +1,6 @@
 """Main pytest test suite for COH Phase 0 eval scenarios.
 
-Discovers and executes all 19 YAML scenarios in evals/scenarios/ against
+Discovers and executes all 19 YAML scenarios in tests/evals/scenarios/ against
 real COHHandlers with deterministic mock adapter.
 """
 

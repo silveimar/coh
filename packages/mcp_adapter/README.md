@@ -105,10 +105,10 @@ Prose rendering via `coh_prose` package:
 
 ```bash
 # Run MCP adapter tests
-uv run pytest packages/mcp_adapter/tests -v
+uv run pytest tests/packages/mcp_adapter -v
 
 # Run with coverage
-uv run pytest packages/mcp_adapter/tests --cov=packages/mcp_adapter/src
+uv run pytest tests/packages/mcp_adapter --cov=packages/mcp_adapter/src
 ```
 
 Tests cover:

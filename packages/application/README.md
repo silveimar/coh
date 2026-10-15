@@ -98,10 +98,10 @@ Deterministic policies in execution-core compute readiness/foreground; applicati
 
 ```bash
 # Run application tests
-pytest packages/application/tests -v
+pytest tests/packages/application -v
 
 # With coverage
-pytest packages/application/tests --cov=packages/application/src
+pytest tests/packages/application --cov=packages/application/src
 ```
 
 Tests cover:
