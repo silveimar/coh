@@ -29,7 +29,7 @@ Posture: everything starts **human-led**. The human merges. A scope only becomes
 | **OS / host** | Work inside your own home. User-space tools (`uv`, `mise`, `volta install` into Volta's user home). | New apt package. New systemd **user** service. Opening a port. | `sudo`. Other users' homes. System units. Firewall changes. The `ci` runner's configuration. |
 | **Secrets** | Read tokens from `~/.config/fleet/*.env` (mode 600). | A new token or a wider token scope. | Commit secrets. Echo them to terminals, transcripts or queue text. Copy them between seats' configs. |
 | **Git / GitHub** | Branches, commits, draft PRs, rebases of your own branches. | Merge in a human-led mission. Delete a branch you did not create. | Force push. Push to `main`. Change repo settings, rulesets, tags or releases. Publish packages. `gh repo delete`. |
-| **Merge (delegated missions only)** | Merge only when **all** hold: required checks green (including `fleet/checker` on the exact head SHA), the DoD checklist is complete, the diff stays inside the slice spec, and no Ask-tier item is open. | Anything that fails one of those conditions. | Asking the human to bypass the ruleset. |
+| **Merge** | Post "ready to merge" on the queue when required checks are green (including the checker's verdict on the exact head SHA), the DoD checklist is complete and the diff stays inside the slice spec. | Every merge is the human's, in every posture, until the fleet merge account is decided (H-101, H-103). | Merging. Asking the human to bypass the ruleset. |
 | **CI/CD** | Add or adjust jobs inside the agreed stack. Staging deploys on merge. | A new tool or service in the stack. Every **production** deploy (GitHub Environment approval). Any change to the production instance or its OpenTofu state. | Disable, skip or weaken a required check. Run the self-hosted runner on a public repo. Reach the production instance outside the deploy job. |
 | **Architecture** | Changes inside the slice spec and existing module boundaries. | A dependency outside the allowlist, a new service or datastore, a schema migration, a public API change, a cross-module refactor. Each needs an ADR. | Silent architecture changes without an ADR. |
 | **Scope / product (doghouse rule)** | What the slice spec says. | Anything the spec does not say, however reasonable it seems. | Expanding a slice because "it needs it" without asking. |
@@ -62,8 +62,8 @@ Posture: everything starts **human-led**. The human merges. A scope only becomes
 | Stage | Runs | Posture | Merge |
 |---|---|---|---|
 | 0: hours | 2-4 h, human nearby | human-led | The human merges. |
-| 1: overnight | 21:30 to 07:00 | delegated for docs, tests and chores only | Auto for those classes, ruleset-enforced. |
-| 2: weekend | Fri to Sun | delegated per mission | Auto per the merge row above. |
+| 1: overnight | 21:30 to 07:00 | delegated for docs, tests and chores only | The human merges (H-101). |
+| 2: weekend | Fri to Sun | delegated per mission | The human merges until H-103 is decided. |
 
 Moving up a stage is the human's decision, made at a gate review. Seats never promote themselves.
 
@@ -71,14 +71,16 @@ Moving up a stage is the human's decision, made at a gate review. Seats never pr
 
 Edits to `FLEET-POLICY.md` and `CULTURE.md` are **Ask-tier**. They go through a PR to the COH repo and the human reviews and merges it, like code.
 
-## Optional: GSD command ownership
+## GSD command ownership (H-99)
 
-Add this section only when GSD is installed for the fleet. Until then, delete it.
+GSD 1.18.0 is installed for the fleet at user level. Claude Code seats use `/gsd-name`; the Codex checker uses `$gsd-name`.
 
 | Seat | May run | May not run |
 |---|---|---|
-| lead | map-codebase, new-project, discuss-phase, plan-phase, review, verify-work, progress | execute-phase, ship, any `--fix` mode |
-| builder | execute-phase, add-tests, code-review `--fix` (own code), ship `--draft` | Edits to `STATE.md` or `ROADMAP.md`, plan-phase |
+| lead | map-codebase, new-project, discuss-phase, plan-phase, review, verify-work, progress. Writes the checks commit before handoff (H-87). | execute-phase, ship, any `--fix` mode |
+| builder | execute-phase (also `--gaps-only`), code-review `--fix` on its own code outside the protected check set, ship `--draft` | add-tests, `--tdd`, edits to `STATE.md` or `ROADMAP.md`, plan-phase |
 | checker | code-review (no `--fix`), secure-phase, validate-phase | Any mode that edits code, any commit |
 
-Never run `/gsd-autonomous` or `/gsd-progress --next --auto`, and never set `workflow.auto_advance`. Creating a branch, committing on it and opening a draft PR are Auto. Reading real data is Ask; use synthetic fixtures. Changing a slice's CONTEXT or PLAN after approval is Ask.
+Never run `/gsd-autonomous` or `/gsd-progress --next --auto`, and never set `workflow.auto_advance`. Creating a branch, committing on it and opening a draft PR are Auto. Reading real data is Ask; use synthetic fixtures. Changing a slice's CONTEXT or PLAN after the planning PR merged is Ask. COH is public: `.planning/` holds no vault paths, personal names or real data.
+
+Gates and stop rules for delegated chore missions live in the fleet's `CULTURE.md` ("Gates on autopilot", "Autopilot").
