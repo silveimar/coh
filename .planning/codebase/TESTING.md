@@ -104,12 +104,13 @@ class TestForegroundService:
 **Patterns:**
 
 ```python
-
 # Swap the composition-root container before app creation
+
 
 @pytest.fixture
 def client(service_container, monkeypatch):
     from coh_api import composition
+
     monkeypatch.setattr(composition, "_container", service_container)
     return TestClient(create_app())
 ```
@@ -140,6 +141,7 @@ class FakeApi:
 @pytest.fixture
 def archive_config() -> ArchiveConfig:
     return ArchiveConfig(enabled=True, directory=".coh/archive")
+
 
 @pytest.fixture
 def timestamp() -> datetime:
@@ -207,7 +209,9 @@ uv run pytest tests/packages/execution-core --cov=packages/execution-core/src --
 ```python
 @pytest.mark.asyncio
 async def test_create_session_round_trip(handlers: COHHandlers):
-    result = await handlers.create_session(project_id="test-project", user_input="Fix the retry logic", intent="execute")
+    result = await handlers.create_session(
+        project_id="test-project", user_input="Fix the retry logic", intent="execute"
+    )
     assert "State: INSPECT" in result[0]["text"]
 ```
 
