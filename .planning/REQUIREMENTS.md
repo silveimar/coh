@@ -22,7 +22,7 @@
 
 ### Coverage
 
-- [ ] **COV-01**: CI fails the prose test step when `packages/prose` statement coverage drops below the recorded floor
+- [ ] **COV-01**: CI fails when `packages/prose` statement coverage, measured for prose alone, drops below the recorded floor
 
 ## v2 Requirements
 
