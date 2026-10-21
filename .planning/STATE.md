@@ -44,6 +44,7 @@ None yet.
 
 - The planning PR must merge before any phase is dispatched (scope gate).
 - Phases 3 and 4 add dev tools; each needs an accepted ADR before build.
+- Phase 3 also needs the owner's answer on the 5 deptry findings on `main` (03-CONTEXT D-04).
 
 ## Deferred Items
 

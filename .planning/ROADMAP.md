@@ -39,9 +39,9 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
 **Protected check set**: not touched
 **Success Criteria** (what must be TRUE):
   1. `uv run pyright packages/execution-core` exits 0 and reports 0 errors.
-  2. `uv run pytest tests/packages/execution-core --cov=packages/execution-core/src --cov-fail-under=90` passes.
+  2. `uv run pytest tests/packages/execution-core --cov=packages/execution-core/src` passes, and `uv run coverage report --include='packages/execution-core/src/*' --fail-under=90` exits 0.
   3. `uv run pytest tests/evals` passes its thresholds.
-  4. Domain timestamps stay naive UTC (`tzinfo is None`), so persisted and wire values are unchanged.
+  4. Fields that defaulted through `datetime.utcnow` still default to naive UTC (`tzinfo is None`); existing `datetime.now(UTC)` sites are unchanged. Persisted and wire values keep their current form.
 **Plans**: TBD
 
 ### Phase 3: Dependency audit job
@@ -49,7 +49,7 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
 **Type**: chore (CI)
 **Depends on**: Nothing (independent); an accepted ADR for the two tools is required before build
 **Requirements**: SUPP-01
-**Protected check set**: YES — `.github/workflows/`. The lead writes the CI job in a checks commit; the builder writes only the ADR draft and `pyproject.toml` config.
+**Protected check set**: YES — `.github/workflows/`. The lead writes the CI jobs in a checks commit; the builder writes only the ADR draft, `pyproject.toml` config and, if the owner picks truthful manifests (03-CONTEXT D-04), member dependencies and `uv.lock`.
 **Success Criteria** (what must be TRUE):
   1. An accepted ADR in `docs/adr/` covers deptry and pip-audit (license, pinning, how they run).
   2. A CI job runs both tools on every PR and push to `main` and is green on the PR head.
@@ -87,9 +87,9 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
 **Requirements**: COV-01
 **Protected check set**: YES — `.github/workflows/ci.yml`. This phase is the lead's checks commit only; there is no builder change.
 **Success Criteria** (what must be TRUE):
-  1. The prose test step in `.github/workflows/ci.yml` passes `--cov-fail-under=94` (measured 94.2% at d2b31b7).
+  1. A new CI step right after the prose tests runs `coverage report --include='packages/prose/src/*' --fail-under=94` (prose-only, measured 94.2% at d2b31b7); the existing prose test line is unchanged (additions only).
   2. CI is green on the PR head.
-  3. The evidence file shows the step failing when run locally with a floor above current coverage.
+  3. The evidence file shows the step failing when replayed locally with a floor above current coverage.
 **Plans**: TBD
 
 ## Progress
