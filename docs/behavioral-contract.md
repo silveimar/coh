@@ -1,7 +1,7 @@
 # COH — Behavioral Contract v1.1
 
 **Phase 0 deliverable** · 2026-08-19 · amended 2026-09-01 (§5, D11) · Contract version: `1.1.0`
-Companion: `../chatprd-docs/COH-PRD.md` (requirements) · `../chatprd-docs/COH-Technical-Design.md` (implementation) · `../COH-Decision-Log.md` (D1–D11) · `../COH-Cognitive-Readability-Profile.md` (prose policy source) · `tests/evals/` (scenario suite) · `COH-Eval-Rubric.md` (scoring)
+Companion: `../chatprd-docs/COH-PRD.md` (requirements) · `../chatprd-docs/COH-Technical-Design.md` (implementation) · `../COH-Decision-Log.md` (D1–D11) · `tests/evals/` (scenario suite) · `COH-Eval-Rubric.md` (scoring)
 
 This document is the testable definition of how COH behaves. Every invariant has a stable ID (`I-nn`) referenced by eval scenarios; changing any invariant requires a Decision Log entry and a contract version bump. In the future repo this file lives at `docs/behavioral-contract.md`.
 
@@ -100,7 +100,7 @@ Predictable section ordering. Sections may be omitted only when empty; order nev
 
 ## 5. Prose Rendering Policy (CRP)
 
-Source: `../COH-Cognitive-Readability-Profile.md` (profile v0.1, 2026-08; Decision D11). The profile is versioned user data — this section encodes only its **strong** signals (6–0, 3–0) as rules. Mild signals (3–2: detail preservation, density, relationship explicitness, linear topology) are soft presenter defaults with no lint and no eval.
+Source: the owner's Cognitive Readability Profile (Decision D11). The profile is versioned user data kept outside this repository — this section encodes only its **strong** signals as rules. Mild signals (detail preservation, density, relationship explicitness, linear topology) are soft presenter defaults with no lint and no eval.
 
 **Scope.** These rules govern **free prose** the agent renders around §4 blocks — inspection findings, rationale, explanations, recommendations, decision narration. They never reorder the structured blocks themselves: §4 section ordering is navigation and remains fixed.
 
