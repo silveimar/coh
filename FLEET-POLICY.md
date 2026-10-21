@@ -44,10 +44,11 @@ Posture: everything starts **human-led**. The human merges. A scope only becomes
 
 ## Runner safety rules
 
-- The `ci` user has no sudo and no access to the fleet user's home, the Hermes data or the owner's notes.
-- Its Docker access is the runner's only privilege. Rootless Docker where the stack allows it.
-- Jobs are ephemeral: a clean workspace for every job.
-- The self-hosted runner is **never** attached to a public repository. When COH goes public, its CI moves to GitHub-hosted runners, or fork PRs stay on GitHub-hosted runners while the self-hosted runner is limited to pushes from the owner's own branches.
+- CI runs only on GitHub-hosted runners (`runs-on: ubuntu-latest`). The repository has no self-hosted runner, and none is attached while it is public.
+- Adding a self-hosted runner is a policy change: it needs an owner-approved PR to this file first, and it never runs jobs from fork pull requests.
+- First-time outside contributors need owner approval before their workflows run (Settings, Actions, General).
+- Every workflow job declares the least `permissions:` it needs, starting from `contents: read`. Workflow changes go through the lead checks commit (protected path).
+- Required checks on `main` are listed in the ruleset; seats cannot bypass it.
 
 ## Roles
 
