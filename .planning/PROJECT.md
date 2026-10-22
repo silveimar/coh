@@ -12,7 +12,7 @@ The Execution Core stays deterministic and authoritative: AI output is proposal-
 
 ### Validated
 
-<!-- Inferred from the existing code at d2b31b7 (see .planning/codebase/). -->
+<!-- Inferred from the existing code at f3743a1 (see .planning/codebase/). -->
 
 - ✓ Deterministic domain model, policies and lifecycle state machine with no framework imports (`packages/execution-core`) — existing
 - ✓ Project-local state store on SQLite with SQLAlchemy and Alembic migrations (`packages/persistence`) — existing
@@ -38,15 +38,15 @@ Mission `chores-q4`: six independent chore, test and docs phases. See `.planning
 
 - Feature work on execution semantics — `chores-q4` is chore/test/docs only; feature phases keep all four human gates (H-88).
 - Fixing the MCP adapter's direct repository access (`packages/mcp_adapter/src/coh_mcp/handlers.py`) — a cross-module refactor needs an ADR and is not a chore.
-- Pyright errors under `tests/` (417 at d2b31b7) — protected check set; only the lead may change it, and edits to existing test lines are Ask.
+- Pyright errors under `tests/` (417 at f3743a1) — protected check set; only the lead may change it, and edits to existing test lines are Ask.
 - Pyright in CI as a required check — it would fail on `main` until every package is clean; it comes after the per-package phases.
 - Trivy, pre-commit, PR template, `fleet/checker` status — listed in `CONTRIBUTING.md` known gaps; not selected for this mission.
 
 ## Context
 
 - Brownfield Python 3.15 monorepo managed with `uv` workspaces; seven packages (see `.planning/codebase/STRUCTURE.md`).
-- Pyright baseline at d2b31b7: 648 errors (source 231, tests 417). Per-package table in `.planning/codebase/CONCERNS.md`.
-- Coverage at d2b31b7 (statements): prose 94.2%, archive 89.2%, application 87.3%, persistence 83.6%. Only the Execution Core has an enforced floor.
+- Pyright baseline at f3743a1: 648 errors (source 231, tests 417). Per-package table in `.planning/codebase/CONCERNS.md`.
+- Coverage at f3743a1 (statements): prose 94.2%, archive 89.2%, application 87.3%, persistence 83.6%. Only the Execution Core has an enforced floor.
 - The work is done by a three-seat fleet (lead, builder, checker) under `FLEET-POLICY.md`. The lead writes the checks commit for any change in the protected check set (`tests/`, `.github/workflows/`, `pytest.ini`, `.coveragerc` and the rest listed in `CONTRIBUTING.md`).
 
 ## Constraints

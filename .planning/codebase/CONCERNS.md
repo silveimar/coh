@@ -1,5 +1,5 @@
 ---
-last_mapped_commit: d2b31b774e3d57f71984cc065d5f59a3641ea9ef
+last_mapped_commit: f3743a11b018cc723740bbc93bdc1a29836a3469
 last_mapped_at: 2026-10-21
 ---
 # Codebase Concerns
@@ -12,7 +12,7 @@ last_mapped_at: 2026-10-21
 - Issue: `docs/coding-rules.md` and `CONTRIBUTING.md` (Definition of Done) require `uv run pyright` to pass. `.github/workflows/ci.yml` does not run it; `CONTRIBUTING.md` "Known gaps" says so.
 - Files: `.github/workflows/ci.yml`, `pyproject.toml` (`[tool.pyright]`), `CONTRIBUTING.md`
 - Impact: Type regressions reach `main` unseen. No per-package error baseline exists, so "pyright passes" cannot be confirmed.
-- Baseline (pyright 1.1.414, `uv sync --all-packages --locked`, commit `d2b31b7`, 119 files, `uv run pyright --outputjson` grouped by top two path segments), errors only:
+- Baseline (pyright 1.1.414, `uv sync --all-packages --locked`, commit `f3743a1`, 119 files, `uv run pyright --outputjson` grouped by top two path segments), errors only:
 
   | Path | Errors |
   |---|---|

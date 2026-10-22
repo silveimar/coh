@@ -87,7 +87,7 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
 **Requirements**: COV-01
 **Protected check set**: YES — `.github/workflows/ci.yml`. This phase is the lead's checks commit only; there is no builder change.
 **Success Criteria** (what must be TRUE):
-  1. A new CI step right after the prose tests runs `coverage report --include='packages/prose/src/*' --fail-under=94` (prose-only, measured 94.2% at d2b31b7); the existing prose test line is unchanged (additions only).
+  1. A new CI step right after the prose tests runs `coverage report --include='packages/prose/src/*' --fail-under=94` (prose-only, measured 94.2% at f3743a1); the existing prose test line is unchanged (additions only).
   2. CI is green on the PR head.
   3. The evidence file shows the step failing when replayed locally with a floor above current coverage.
 **Plans**: TBD

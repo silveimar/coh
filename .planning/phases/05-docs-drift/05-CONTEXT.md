@@ -9,7 +9,7 @@
 
 The repository docs describe only what exists and mark planned components as planned. Requirement: DOCS-01.
 
-In scope: `README.md`; the `## Repository Structure` section of `docs/coding-rules.md` (lines 19-60 at d2b31b7); the seven workspace member READMEs (`packages/{execution-core,persistence,archive,prose,mcp_adapter,application}/README.md`, `apps/api/README.md`); a new `packages/prose/README.md`.
+In scope: `README.md`; the `## Repository Structure` section of `docs/coding-rules.md` (lines 19-60 at f3743a1); the seven workspace member READMEs (`packages/{execution-core,persistence,archive,prose,mcp_adapter,application}/README.md`, `apps/api/README.md`); a new `packages/prose/README.md`.
 Out of scope (do not edit): every other section of `docs/coding-rules.md` (header, Tech Stack rules including line 83, line 226: standards text, Ask-tier per `FLEET-POLICY.md`); `docs/decision-log.md` (append-only); `docs/glossary.md` (rename needs a decision-log entry); `docs/feature-specs/`; `AGENTS.md`, `CONTRIBUTING.md`, `FLEET-POLICY.md`; any code or test.
 </domain>
 
@@ -83,7 +83,7 @@ Out of scope (do not edit): every other section of `docs/coding-rules.md` (heade
 <specifics>
 ## Specific Ideas
 
-The decisions above cover every drift item found at d2b31b7. The planner re-derives the full inventory with `test -e` on each path named in the in-scope files.
+The decisions above cover every drift item found at f3743a1. The planner re-derives the full inventory with `test -e` on each path named in the in-scope files.
 </specifics>
 
 <deferred>

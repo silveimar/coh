@@ -12,7 +12,7 @@ How should the repository declare its development tools (ruff, pyright, pytest a
 
 ## Context
 
-Facts from `main` @ `8d32247` (checked 2026-10-09 in a clean copy):
+Facts from `main` @ `b870b28` (checked 2026-10-09 in a clean copy):
 
 - The tools are declared as per-package `[project.optional-dependencies] dev` extras in `packages/*/pyproject.toml` and `apps/api/pyproject.toml`.
 - `uv sync --all-packages` does not install extras, so `uv run ruff`, `uv run pytest` and `uv run pyright` fail with "Failed to spawn". The README's `uv sync` then `uv run pytest` does not work as written.

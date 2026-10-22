@@ -7,7 +7,7 @@
 <domain>
 ## Phase Boundary
 
-`packages/execution-core` reaches 0 pyright errors (baseline 18 at d2b31b7), with no behavior change and no change to the value or form of any stored or serialized datetime. Requirement: TYPE-02.
+`packages/execution-core` reaches 0 pyright errors (baseline 18 at f3743a1), with no behavior change and no change to the value or form of any stored or serialized datetime. Requirement: TYPE-02.
 
 In scope: the 13 `Field(default_factory=datetime.utcnow)` sites, `policies/integrity_policy.py:69`, `state_machine/lifecycle.py:69-71`, `policies/parking_policy.py:125`, all under `packages/execution-core/src/execution_core/`.
 Out of scope: the existing aware `datetime.now(UTC)` sites (mutators and aware default lambdas); switching any timestamp to timezone-aware; pyright errors in other packages or under `tests/`.
@@ -38,7 +38,7 @@ Out of scope: the existing aware `datetime.now(UTC)` sites (mutators and aware d
 
 1. `uv run pyright packages/execution-core` exits 0 and prints `0 errors`.
 2. `grep -rn "utcnow" packages/execution-core/src` prints nothing.
-3. `uv run pytest tests/packages/execution-core -q -W error::DeprecationWarning --cov=packages/execution-core/src` passes with the same test count as `main` (189 at d2b31b7), and `uv run coverage report --include='packages/execution-core/src/*' --fail-under=90` exits 0. Before the fix the pytest command fails on DeprecationWarning.
+3. `uv run pytest tests/packages/execution-core -q -W error::DeprecationWarning --cov=packages/execution-core/src` passes with the same test count as `main` (189 at f3743a1), and `uv run coverage report --include='packages/execution-core/src/*' --fail-under=90` exits 0. Before the fix the pytest command fails on DeprecationWarning.
    Note: do not write the pytest-cov fail-under flag literally in any builder-committed file (PLAN, SUMMARY, VERIFICATION, evidence): `checks-guard` treats it as a weakening token in non-lead commits. Use `coverage report --fail-under` as above.
 4. For each model whose field defaulted to `utcnow` (`Task`, `Evidence`, `Decision`, `ParkingItem`, `ExecutionSession`, `Foreground`, `Specification`, `DoneWhenCriterion`, `Assumption`, `Unknown`), constructing it with defaults gives `created_at.tzinfo is None` and an `isoformat()` with no offset. Output pasted in the evidence file.
 5. `git diff main --name-only` lists nothing under `tests/`, `evals/` or `.github/`, and no `pytest.ini` or `.coveragerc`; `git diff main | grep -E '^\+.*(type: ignore|pyright: ignore|noqa)'` prints nothing.
@@ -76,7 +76,7 @@ Out of scope: the existing aware `datetime.now(UTC)` sites (mutators and aware d
 <specifics>
 ## Specific Ideas
 
-Baseline at d2b31b7: 189 tests pass, 95.60% coverage, about 1687 DeprecationWarnings from `utcnow` through pydantic default factories.
+Baseline at f3743a1: 189 tests pass, 95.60% coverage, about 1687 DeprecationWarnings from `utcnow` through pydantic default factories.
 </specifics>
 
 <deferred>
