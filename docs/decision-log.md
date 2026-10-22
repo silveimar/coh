@@ -136,3 +136,12 @@ Durable product/engineering decisions for the **Cognitive Operating Harness (COH
 - **Alternatives rejected:** dropping `httpx` (breaks the API tests to avoid a license that imposes no obligation on dev-only use); a blanket MPL-2.0 allowance (wider than the one package that needs it).
 - **Reopen when:** COH modifies, vendors or redistributes `certifi` files (for example in a runtime dependency or a packaged release), or another MPL-2.0 or weak-copyleft package enters the lock.
 - **Decided:** 2026-10-22, Silver (owner answer Q13, chores-q4 planning review).
+
+## D17 - pathspec under MPL-2.0 (D16 reopened)
+
+- **Question:** ADR-0002 adds mypy 2.4.0 to the root `dev` group. Its dependency closure includes `pathspec` 1.1.1 (MPL-2.0), which meets D16's reopen condition ("another MPL-2.0 or weak-copyleft package enters the lock"). Approve it, or keep mypy out?
+- **Selected:** Approve `pathspec` under MPL-2.0 as a dev-only transitive dependency of mypy, used unmodified. D16 stands for `certifi`. No other MPL-2.0 package is approved by this entry.
+- **Rationale:** The same distinction as D16: using `pathspec` for type checking in development and CI is not distribution and triggers no MPL obligation. Redistributing MPL-covered files, changed or not, carries the license's notice and source-availability requirements; COH does not vendor or redistribute `pathspec`. It reaches the lock only through the dev group, so no COH runtime component ships it.
+- **Alternatives rejected:** rejecting `pathspec`, which leaves TYPE-03 unmet until a mypy release without it is evaluated; running mypy through an unlocked `uvx` (installs the same closure and drops the version pin, ADR-0002 option C); a blanket MPL-2.0 allowance (wider than the one package that needs it).
+- **Reopen when:** COH modifies, vendors or redistributes `pathspec` files, `pathspec` moves out of the dev group, or another MPL-2.0 or weak-copyleft package enters the lock.
+- **Decided:** 2026-10-22, Silver (owner answer to the ADR-0002 decision, chores-q4 Phase 4).
