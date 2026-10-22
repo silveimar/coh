@@ -1476,3 +1476,54 @@ Privacy:
 - `/(home|tmp)/` count: 0 in each phase file and the ADR.
 
 Self-scan for checks-guard weakening tokens: 0 in the ADR, the ADR index, the root and 7 member `pyproject.toml` files and this file.
+
+### CI on 43a4a0d (criterion 6)
+
+`gh pr checks 39 --repo <repo>` (exit 8 because one check is pending)
+
+```text
+Dependency check (deptry)	pass	32s
+Lint and Test (Python 3.15)	pass	55s
+Secret scan (gitleaks)	pass	8s
+Vulnerability audit (pip-audit)	pass	12s
+checks-guard	pass	9s
+checks-edits	pending	0
+```
+
+`gh run view 39814532635 --repo <repo> --json headSha,conclusion,jobs --jq '.headSha, .conclusion, (.jobs[] | [.name, .conclusion] | @tsv)'`
+
+```text
+43a4a0d30bf00911f524f2c389d4b191d5aa24c8
+success
+Lint and Test (Python 3.15)	success
+Secret scan (gitleaks)	success
+Dependency check (deptry)	success
+Vulnerability audit (pip-audit)	success
+```
+
+Job output lines (from `gh run view 39814532635 --repo <repo> --log --job <id>` piped to `grep`; the job's own script lines are left out). Deptry job: the version gate printed `deptry 0.25.1`, then the 7 members in loop order:
+
+```text
+Scanning 5 files...
+Success! No dependency issues found.
+Scanning 24 files...
+Success! No dependency issues found.
+Scanning 11 files...
+Success! No dependency issues found.
+Scanning 3 files...
+Success! No dependency issues found.
+Scanning 6 files...
+Success! No dependency issues found.
+Scanning 3 files...
+Success! No dependency issues found.
+Scanning 12 files...
+Success! No dependency issues found.
+```
+
+pip-audit job, "Run pip-audit" step:
+
+```text
+No known vulnerabilities found
+```
+
+checks-edits (run 39814528261) has status `waiting`: it waits for the checks-approval environment, which is the owner's action. The lead asked the owner (row qitem-20261022164032-28f215b9d9cbc753) and told the builder not to wait (16:40Z). A pending checks-edits is not a failure (plan Task 5 Step E).
