@@ -18,29 +18,32 @@ Keep these concepts separate:
 
 ## Repository Structure
 
-Polyglot monorepo: uv workspace for Python, pnpm workspace for TypeScript.
+Monorepo: a uv workspace for Python; a pnpm workspace for TypeScript is planned (Decisions D2, D8).
 
 ```
 .
 ├── apps/
 │   ├── api/                 # FastAPI application and HTTP/SSE transport
-│   ├── worker/              # Huey worker entry point and job registration
-│   └── web/                 # React + Vite application (Phase 3 only — Decision D8)
+│   ├── worker/              # Huey worker entry point and job registration (planned; Decision D2)
+│   └── web/                 # React + Vite application (planned; Phase 3 only — Decision D8)
 ├── packages/
 │   ├── execution-core/      # Pure Python domain model, policies, state machine
-│   ├── agent-runtime/       # Provider adapters, prompts, tools, agent workflows
+│   ├── application/         # Application services
+│   ├── persistence/         # SQLAlchemy 2 state store: models, repositories, unit of work
+│   │   └── alembic/         # Alembic migration environment and revisions (alembic.ini sits beside it)
+│   ├── agent-runtime/       # Provider adapters, prompts, tools, agent workflows (planned)
 │   ├── archive/             # Append-only Markdown archive writer/reader
-│   ├── mcp-server/          # Python MCP adapter (first adapter: Claude Code — D5)
-│   └── python-client/       # Optional typed Python API client
-├── frontend/
-│   └── generated-api/       # Generated TypeScript OpenAPI client; do not edit
-├── migrations/              # Alembic migration environment and revisions
+│   ├── prose/               # Prose rendering policy (P-01 to P-06) and output renderers
+│   ├── mcp_adapter/         # Python MCP adapter (first adapter: Claude Code — D5)
+│   └── python-client/       # Optional typed Python API client (planned)
+├── frontend/                # TypeScript frontend (planned; Phase 3 only — Decision D8)
+│   └── generated-api/       # Generated TypeScript OpenAPI client; do not edit (planned)
 ├── tests/                   # All tests; tests/evals/ holds the behavioral evaluations and fixtures (Phase 0 suite)
 ├── docs/                    # Architecture and implementation documentation
 ├── pyproject.toml           # Root uv workspace configuration
 ├── uv.lock                  # Committed Python dependency lockfile
-├── package.json             # Root pnpm workspace configuration
-└── pnpm-lock.yaml           # Committed TypeScript dependency lockfile
+├── package.json             # Root pnpm workspace configuration (planned)
+└── pnpm-lock.yaml           # Committed TypeScript dependency lockfile (planned)
 ```
 
 Within Python packages, use `src/` layouts. Keep the Execution Core free of FastAPI, SQLAlchemy, Huey, MCP, React, and agent-framework imports.
@@ -55,9 +58,10 @@ packages/execution-core/src/execution_core/
 apps/api/src/coh_api/
 ├── api/
 ├── application/
-├── infrastructure/
 └── composition.py
 ```
+
+The API has no infrastructure layer of its own: `composition.py` imports the engine, session factory and unit of work from `packages/persistence` (`apps/api/src/coh_api/composition.py:6-7`).
 
 ## Project Status
 

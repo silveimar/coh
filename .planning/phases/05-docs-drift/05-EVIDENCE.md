@@ -251,3 +251,140 @@ Gates on the edited files:
 | `grep -n -F '**Status:** Phase 0 complete, execution-core implementation in progress' <worktree>/README.md` | `3:**Status:** Phase 0 complete, execution-core implementation in progress` |
 | link gate (B3 command) | `7` |
 | range gate (B4 command) | `D1-D15` |
+
+Committed as b0931e8. After the commit, `git -C <worktree> ls-files 'packages/*/README.md' 'apps/*/README.md' | wc -l` printed `7`.
+
+## Task 2
+
+1. `grep -n '^## ' <worktree>/docs/coding-rules.md` (the same 9 headings in the same order; every line after 19 shifts by +4)
+
+```text
+7:## Executive Summary
+19:## Repository Structure
+66:## Project Status
+72:## Tech Stack & Conventions
+96:## Code Style Rules
+127:## Component & Architecture Patterns
+149:## Do's and Don'ts
+185:## Testing & Quality
+215:## Common Pitfalls
+```
+
+2. `git -C <worktree> diff -U0 origin/main -- docs/coding-rules.md`, run before the commit (the working-tree form). Old-side ranges: 21, 27-28, 31, 33-37, 42-43, 58, and an insertion after 61. All lie within lines 20-61.
+
+```text
+diff --git a/docs/coding-rules.md b/docs/coding-rules.md
+index 9dbe243..a693596 100644
+--- a/docs/coding-rules.md
++++ b/docs/coding-rules.md
+@@ -21 +21 @@ Keep these concepts separate:
+-Polyglot monorepo: uv workspace for Python, pnpm workspace for TypeScript.
++Monorepo: a uv workspace for Python; a pnpm workspace for TypeScript is planned (Decisions D2, D8).
+@@ -27,2 +27,2 @@ Polyglot monorepo: uv workspace for Python, pnpm workspace for TypeScript.
+-│   ├── worker/              # Huey worker entry point and job registration
+-│   └── web/                 # React + Vite application (Phase 3 only — Decision D8)
++│   ├── worker/              # Huey worker entry point and job registration (planned; Decision D2)
++│   └── web/                 # React + Vite application (planned; Phase 3 only — Decision D8)
+@@ -31 +31,4 @@ Polyglot monorepo: uv workspace for Python, pnpm workspace for TypeScript.
+-│   ├── agent-runtime/       # Provider adapters, prompts, tools, agent workflows
++│   ├── application/         # Application services
++│   ├── persistence/         # SQLAlchemy 2 state store: models, repositories, unit of work
++│   │   └── alembic/         # Alembic migration environment and revisions (alembic.ini sits beside it)
++│   ├── agent-runtime/       # Provider adapters, prompts, tools, agent workflows (planned)
+@@ -33,5 +36,5 @@ Polyglot monorepo: uv workspace for Python, pnpm workspace for TypeScript.
+-│   ├── mcp-server/          # Python MCP adapter (first adapter: Claude Code — D5)
+-│   └── python-client/       # Optional typed Python API client
+-├── frontend/
+-│   └── generated-api/       # Generated TypeScript OpenAPI client; do not edit
+-├── migrations/              # Alembic migration environment and revisions
++│   ├── prose/               # Prose rendering policy (P-01 to P-06) and output renderers
++│   ├── mcp_adapter/         # Python MCP adapter (first adapter: Claude Code — D5)
++│   └── python-client/       # Optional typed Python API client (planned)
++├── frontend/                # TypeScript frontend (planned; Phase 3 only — Decision D8)
++│   └── generated-api/       # Generated TypeScript OpenAPI client; do not edit (planned)
+@@ -42,2 +45,2 @@ Polyglot monorepo: uv workspace for Python, pnpm workspace for TypeScript.
+-├── package.json             # Root pnpm workspace configuration
+-└── pnpm-lock.yaml           # Committed TypeScript dependency lockfile
++├── package.json             # Root pnpm workspace configuration (planned)
++└── pnpm-lock.yaml           # Committed TypeScript dependency lockfile (planned)
+@@ -58 +60,0 @@ apps/api/src/coh_api/
+-├── infrastructure/
+@@ -61,0 +64,2 @@ apps/api/src/coh_api/
++The API has no infrastructure layer of its own: `composition.py` imports the engine, session factory and unit of work from `packages/persistence` (`apps/api/src/coh_api/composition.py:6-7`).
++
+```
+
+3. `grep -n -E 'worker/|web/|agent-runtime/|python-client/|frontend/|generated-api/|package\.json|pnpm' <worktree>/docs/coding-rules.md`
+
+```text
+21:Monorepo: a uv workspace for Python; a pnpm workspace for TypeScript is planned (Decisions D2, D8).
+27:│   ├── worker/              # Huey worker entry point and job registration (planned; Decision D2)
+28:│   └── web/                 # React + Vite application (planned; Phase 3 only — Decision D8)
+34:│   ├── agent-runtime/       # Provider adapters, prompts, tools, agent workflows (planned)
+38:│   └── python-client/       # Optional typed Python API client (planned)
+39:├── frontend/                # TypeScript frontend (planned; Phase 3 only — Decision D8)
+40:│   └── generated-api/       # Generated TypeScript OpenAPI client; do not edit (planned)
+45:├── package.json             # Root pnpm workspace configuration (planned)
+46:└── pnpm-lock.yaml           # Committed TypeScript dependency lockfile (planned)
+70:- Monorepo: yes — uv workspace (Python) + pnpm workspace (TypeScript).
+76:- **Package managers:** uv for all Python operations; pnpm for all TypeScript operations. Commit both lockfiles.
+86:- **API contract:** Pydantic models at API/integration boundaries generate the OpenAPI schema. Generate the TypeScript client into `frontend/generated-api/` (Hey API or `openapi-ts` via a checked-in command). Never hand-maintain duplicate types; never edit generated files.
+117:- Use generated API types from `frontend/generated-api/` for all server contracts; explicit return types for exported functions and hooks.
+175:- DON'T hand-write duplicate TypeScript versions of Pydantic API schemas or edit `frontend/generated-api/`.
+209:- Frontend (Phase 3): lint/format checks, `pnpm exec tsc --noEmit`, `pnpm test`.
+```
+
+4. The same grep piped to `grep -v -c planned` (baseline 15). The 6 lines left, 70, 76, 86, 117, 175 and 209, all come after `66:## Project Status`, outside the section.
+
+```text
+6
+```
+
+Other Task 2 gates:
+
+| Command | Output |
+|---|---|
+| `grep -c -E 'mcp-server\|migrations/' <worktree>/docs/coding-rules.md` | `0` (baseline 2) |
+| `grep -c -F 'composition.py:6-7' <worktree>/docs/coding-rules.md` | `1` (baseline 0) |
+| `grep -c -E '(├──\|└──) (mcp_adapter\|persistence\|prose\|application\|alembic)/' <worktree>/docs/coding-rules.md` | `6` (baseline 1) |
+| `grep -c -F 'infrastructure/' <worktree>/docs/coding-rules.md` | `0` (baseline 1) |
+| `grep -n -F 'Huey with SQLite initially' <worktree>/docs/coding-rules.md` | `87:- **Background jobs:** Huey with SQLite initially; ...` |
+| `git -C <worktree> show origin/main:docs/coding-rules.md \| grep -n -F 'Huey with SQLite initially'` | `83:- **Background jobs:** Huey with SQLite initially; ...` (same text, shifted by +4) |
+
+5. `ls -d` on every R and P path of the new section (exit 2; "cannot access" only for the 8 planned paths)
+
+```text
+ls: cannot access '<worktree>/apps/worker': No such file or directory
+ls: cannot access '<worktree>/apps/web': No such file or directory
+ls: cannot access '<worktree>/packages/agent-runtime': No such file or directory
+ls: cannot access '<worktree>/packages/python-client': No such file or directory
+ls: cannot access '<worktree>/frontend': No such file or directory
+ls: cannot access '<worktree>/frontend/generated-api': No such file or directory
+ls: cannot access '<worktree>/package.json': No such file or directory
+ls: cannot access '<worktree>/pnpm-lock.yaml': No such file or directory
+<worktree>/apps
+<worktree>/apps/api
+<worktree>/apps/api/src/coh_api
+<worktree>/apps/api/src/coh_api/api
+<worktree>/apps/api/src/coh_api/application
+<worktree>/apps/api/src/coh_api/composition.py
+<worktree>/docs
+<worktree>/packages
+<worktree>/packages/application
+<worktree>/packages/archive
+<worktree>/packages/execution-core
+<worktree>/packages/execution-core/src/execution_core
+<worktree>/packages/execution-core/src/execution_core/domain
+<worktree>/packages/execution-core/src/execution_core/events
+<worktree>/packages/execution-core/src/execution_core/policies
+<worktree>/packages/execution-core/src/execution_core/state_machine
+<worktree>/packages/mcp_adapter
+<worktree>/packages/persistence
+<worktree>/packages/persistence/alembic
+<worktree>/packages/persistence/alembic.ini
+<worktree>/packages/prose
+<worktree>/pyproject.toml
+<worktree>/tests
+<worktree>/tests/evals
+<worktree>/uv.lock
+```
