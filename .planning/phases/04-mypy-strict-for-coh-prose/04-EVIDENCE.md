@@ -377,3 +377,139 @@ Success: no issues found in 3 source files
 ```
 
 `.mypy_cache/`: mypy created it at the worktree root. `git status` does not show it, because mypy writes a catch-all `.gitignore` inside it (`ls -a` printed `.gitignore`, `3.15`, `CACHEDIR.TAG`). It was removed with `rm -r <worktree>/.mypy_cache`, per the dispatch rule that no `.mypy_cache` is left behind. Later mypy runs recreate it, so it is removed again before handoff.
+
+## Task 5 (final gates)
+
+All of these ran at 2bb00cc (Task 4 evidence commit). The only commit after it carries this section, VERIFICATION and SUMMARY.
+
+D-04 order, `git -C <worktree> log --reverse --format="%h %ae %s" --name-only origin/main..HEAD`. Blank lines are removed here; the output is otherwise verbatim.
+
+```text
+0b49391 lead-seat@coh-fleet.invalid ci: mypy strict step for coh_prose (TYPE-03 checks)
+.github/workflows/ci.yml
+3fe150b lead-seat@coh-fleet.invalid docs(planning): Phase 4 plan, mypy strict for coh_prose (TYPE-03)
+.planning/phases/04-mypy-strict-for-coh-prose/04-01-PLAN.md
+ff77e91 6440797+silveimar@users.noreply.github.com docs(adr): propose ADR-0002, mypy strict for coh_prose (TYPE-03)
+.planning/phases/04-mypy-strict-for-coh-prose/04-EVIDENCE.md
+docs/adr/0002-mypy-strict-for-coh-prose.md
+docs/adr/README.md
+a1c9e12 lead-seat@coh-fleet.invalid docs(decision-log): D17 pathspec MPL-2.0 dev-only (D16 reopened)
+README.md
+docs/decision-log.md
+fde02e0 6440797+silveimar@users.noreply.github.com docs(adr): accept ADR-0002 (owner decision qitem-20261022141325-97bd7544)
+docs/adr/0002-mypy-strict-for-coh-prose.md
+docs/adr/README.md
+baaff7c 6440797+silveimar@users.noreply.github.com build(deps): add mypy 2.4.0 to the root dev group with strict config (ADR-0002, TYPE-03)
+pyproject.toml
+uv.lock
+2bb00cc 6440797+silveimar@users.noreply.github.com docs(04): build evidence
+.planning/phases/04-mypy-strict-for-coh-prose/04-EVIDENCE.md
+```
+
+No pyproject.toml, uv.lock or coh_prose path appears before the accept commit fde02e0.
+
+Criterion 1, `uv run --no-sync --directory <worktree> mypy --strict packages/prose/src/coh_prose` (exit 0)
+
+```text
+Success: no issues found in 3 source files
+```
+
+Criterion 2, `uv run --no-sync --directory <worktree> pyright packages/prose` (exit 0)
+
+```text
+0 errors, 0 warnings, 0 informations
+```
+
+`uv run --no-sync --directory <worktree> pytest tests/packages/prose -q` (exit 0)
+
+```text
+....................................                                     [100%]
+36 passed in 0.09s
+```
+
+Criterion 3, `grep -n "mypy --strict packages/prose/src/coh_prose" <worktree>/.github/workflows/ci.yml`
+
+```text
+44:        run: uv run mypy --strict packages/prose/src/coh_prose
+```
+
+`grep -c "on-error" <worktree>/.github/workflows/ci.yml` (exit 1 at count 0, the pass state)
+
+```text
+0
+```
+
+`git -C <worktree> log --format="%h %ae %s" origin/main..HEAD -- .github`
+
+```text
+0b49391 lead-seat@coh-fleet.invalid ci: mypy strict step for coh_prose (TYPE-03 checks)
+```
+
+`git -C <worktree> diff --numstat origin/main...HEAD -- .github/workflows/ci.yml`
+
+```text
+5	0	.github/workflows/ci.yml
+```
+
+`grep -n -A 2 "Run mypy strict (coh_prose)" <worktree>/.github/workflows/ci.yml`
+
+```text
+43:      - name: Run mypy strict (coh_prose)
+44-        run: uv run mypy --strict packages/prose/src/coh_prose
+45-
+```
+
+Criterion 4, `git -C <worktree> diff origin/main...HEAD -- packages/prose/src`. The diff is empty, so the plan's `grep -nE "type: ignore|# mypy:|pyright: ignore"` over it prints nothing.
+
+```text
+(no output)
+```
+
+Criterion 5, `grep -nE "ignore_errors|disable_error_code|follow_imports|ignore_missing_imports|tool\.mypy\.overrides|plugins" <worktree>/pyproject.toml <worktree>/packages/prose/pyproject.toml` (exit 1)
+
+```text
+(no output)
+```
+
+Criterion 6, `grep -c '^name = "mypy"' <worktree>/uv.lock`
+
+```text
+1
+```
+
+`uv lock --check --directory <worktree>` (exit 0)
+
+```text
+Resolved 73 packages in 0.85ms
+```
+
+`grep -c -F -e '**Status:** Accepted' -e '| [0002](0002-mypy-strict-for-coh-prose.md) | Add mypy to the root dev group and check coh_prose with mypy --strict | Accepted |' <ADR> <ADR index>`
+
+```text
+<worktree>/docs/adr/README.md:1
+<worktree>/docs/adr/0002-mypy-strict-for-coh-prose.md:1
+```
+
+The ADR's dependency table has a license line for mypy and for each of the 5 transitive packages (Task 1 gate: 6 rows).
+
+`git -C <worktree> diff --name-only origin/main...HEAD`
+
+```text
+.github/workflows/ci.yml
+.planning/phases/04-mypy-strict-for-coh-prose/04-01-PLAN.md
+.planning/phases/04-mypy-strict-for-coh-prose/04-EVIDENCE.md
+README.md
+docs/adr/0002-mypy-strict-for-coh-prose.md
+docs/adr/README.md
+docs/decision-log.md
+pyproject.toml
+uv.lock
+```
+
+`.github/workflows/ci.yml` and `04-01-PLAN.md` come from the lead commits 0b49391 and 3fe150b. `README.md` and `docs/decision-log.md` come from lead commit a1c9e12 (D17), which the resume row allows. The builder edited neither.
+
+Privacy:
+
+- Decider name from the decision-log Decided lines, in `git -C <worktree> diff -U0 origin/main...HEAD` (`grep -c -i -w`): 1 match. It is the `Decided` line of D17 in lead commit a1c9e12, which follows the log's existing convention.
+- The same grep restricted to the builder paths (`docs/adr pyproject.toml uv.lock .planning/phases/04-mypy-strict-for-coh-prose packages`): 0 matches.
+- Metadata author, maintainer and copyright lines added under `docs/adr` and `04-EVIDENCE.md`: 0.
