@@ -8,8 +8,8 @@
 
 ### Typing
 
-- [ ] **TYPE-01**: `uv run pyright packages/archive` reports 0 errors (baseline 5 at d2b31b7)
-- [ ] **TYPE-02**: `uv run pyright packages/execution-core` reports 0 errors (baseline 18 at d2b31b7), with stored datetime values unchanged
+- [ ] **TYPE-01**: `uv run pyright packages/archive` reports 0 errors (baseline 5 at f3743a1)
+- [ ] **TYPE-02**: `uv run pyright packages/execution-core` reports 0 errors (baseline 18 at f3743a1), with stored datetime values unchanged
 - [ ] **TYPE-03**: One module passes `mypy --strict`, and CI runs that check on every PR
 
 ### Supply chain

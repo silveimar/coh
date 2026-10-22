@@ -7,7 +7,7 @@
 <domain>
 ## Phase Boundary
 
-`packages/archive` reaches 0 pyright errors (baseline 5 at d2b31b7), with no behavior change and no change to the on-disk archive format. Requirement: TYPE-01.
+`packages/archive` reaches 0 pyright errors (baseline 5 at f3743a1), with no behavior change and no change to the on-disk archive format. Requirement: TYPE-01.
 
 In scope: `packages/archive/src/coh_archive/markdown.py:222`, `:305` and `service.py:138` (reportUnusedVariable); `service.py:189` (reportUnknownParameterType, reportMissingTypeArgument).
 Out of scope: pyright errors under `tests/packages/archive` (53, protected); surfacing tool-event artifacts in `ArchiveWriteResult` or `ToolEvent.artifact_paths`; the inline `import yaml`, broad `except Exception` and payload mutation in the writer.
@@ -32,8 +32,8 @@ Out of scope: pyright errors under `tests/packages/archive` (53, protected); sur
 ## Testable Acceptance Criteria
 
 1. `uv run pyright --outputjson packages/archive | jq '.summary.errorCount'` prints `0`.
-2. `uv run pyright --outputjson | jq '.summary.errorCount'` prints exactly 5 fewer than on `main` (648 at d2b31b7).
-3. `uv run pytest tests/packages/archive -q` and `uv run pytest tests/packages/mcp_adapter/test_archive_wiring.py -q` pass with the same counts as `main` (33 and 6 at d2b31b7).
+2. `uv run pyright --outputjson | jq '.summary.errorCount'` prints exactly 5 fewer than on `main` (648 at f3743a1).
+3. `uv run pytest tests/packages/archive -q` and `uv run pytest tests/packages/mcp_adapter/test_archive_wiring.py -q` pass with the same counts as `main` (33 and 6 at f3743a1).
 4. `git diff --name-only main...HEAD -- . ':!.planning'` lists only `packages/archive/src/coh_archive/markdown.py` and `packages/archive/src/coh_archive/service.py`.
 5. `git diff main...HEAD -- packages/archive | grep -E '^\+.*(type: ignore|pyright: ignore|noqa)'` prints nothing.
 6. `uv run ruff check packages/archive` and `uv run ruff format --check packages/archive` pass.
