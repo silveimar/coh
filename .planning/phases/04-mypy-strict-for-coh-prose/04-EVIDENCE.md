@@ -208,3 +208,172 @@ Appendix and owner-questions headings, `grep -c -F -e '## Appendix: D-03a verifi
 ```
 
 The host-path gate (`/(home|tmp)/`) and the checks-guard token self-scan print 0 for the ADR, the ADR index and this file. They run again after this edit, before the commit.
+
+## Task 4 (build)
+
+Resume signal: queue row qitem-20261022141325-97bd7544 from lead-lead@coh. The owner's answers were Q1 accept and Q2 approve; the lead recorded Q2 as D17 in lead-seat commit a1c9e12 (`docs/decision-log.md` D17, and `README.md` D1-D17). `git -C <worktree> pull --ff-only` printed `Already up to date.`, with head a1c9e12.
+
+Step A: ADR-0002 set to Accepted (Deciders, Slice / PR #38, Decision log D17, the dependency checklist line ticked, the owner answers recorded) and the index row set to Accepted. Commit fde02e0 `docs(adr): accept ADR-0002 (owner decision qitem-20261022141325-97bd7544)`.
+
+Step B, the dependency.
+
+`uv add --directory <worktree> --dev --no-sync "mypy==2.4.0"` (exit 0)
+
+```text
+Resolved 73 packages in 268ms
+```
+
+The Edit tool then changed the dev-group line `"mypy==2.4.0",` to `"mypy>=2.4.0",`. uv placed it between hypothesis and pyright.
+
+`uv lock --directory <worktree>` (exit 0)
+
+```text
+Resolved 73 packages in 5ms
+```
+
+Step C: the Edit tool appended the D-06 table after `[tool.pyright]`, with one blank line before it. `python_version` is kept (ADR-0002, V10).
+
+Step B and C gates:
+
+`uv lock --check --directory <worktree>` (exit 0)
+
+```text
+Resolved 73 packages in 0.77ms
+```
+
+`grep -c '^name = "mypy"' <worktree>/uv.lock`
+
+```text
+1
+```
+
+`grep -n -A1 '^name = "mypy"' <worktree>/uv.lock`
+
+```text
+749:name = "mypy"
+750-version = "2.4.0"
+```
+
+`grep -n -F '"mypy>=' <worktree>/pyproject.toml`
+
+```text
+12:    "mypy>=2.4.0",
+```
+
+New lock packages, `git -C <worktree> diff origin/main -- uv.lock` filtered with `grep -E '^\+name = '`. The diff went to a file first because its output was too large, so this was two commands.
+
+```text
++name = "ast-serialize"
++name = "librt"
++name = "mypy"
++name = "mypy-extensions"
++name = "pathspec"
+```
+
+These are the five new packages in ADR-0002's table. typing-extensions stays at 4.16.0.
+
+`git -C <worktree> diff --numstat origin/main -- pyproject.toml uv.lock` (working tree before the commit; zero deletions)
+
+```text
+5	0	pyproject.toml
+133	0	uv.lock
+```
+
+`grep -n -A 3 -F '[tool.mypy]' <worktree>/pyproject.toml`
+
+```text
+59:[tool.mypy]
+60-strict = true
+61-python_version = "3.15"
+```
+
+Criterion 5, `grep -nE "ignore_errors|disable_error_code|follow_imports|ignore_missing_imports|tool\.mypy\.overrides|plugins" <worktree>/pyproject.toml <worktree>/packages/prose/pyproject.toml` (exit 1)
+
+```text
+(no output)
+```
+
+Step D.
+
+`uv sync --directory <worktree> --all-packages --locked` (exit 0)
+
+```text
+Resolved 73 packages in 0.78ms
+Installed 5 packages in 8ms
+ + ast-serialize==0.13.1
+ + librt==0.16.0
+ + mypy==2.4.0
+ + mypy-extensions==1.1.0
+ + pathspec==1.1.1
+```
+
+The CI command, `uv run --no-sync --directory <worktree> mypy --strict packages/prose/src/coh_prose` (exit 0)
+
+```text
+Success: no issues found in 3 source files
+```
+
+No coh_prose change was needed (D-08).
+
+`uv run --no-sync --directory <worktree> pyright packages/prose` (exit 0)
+
+```text
+0 errors, 0 warnings, 0 informations
+```
+
+`uv run --no-sync --directory <worktree> pytest tests/packages/prose -q` (exit 0)
+
+```text
+....................................                                     [100%]
+36 passed in 0.08s
+```
+
+`uv run --no-sync --directory <worktree> ruff check .` (exit 0)
+
+```text
+All checks passed!
+```
+
+`uv run --no-sync --directory <worktree> ruff format --check .` (exit 0)
+
+```text
+188 files already formatted
+```
+
+Step E: commit baaff7c `build(deps): add mypy 2.4.0 to the root dev group with strict config (ADR-0002, TYPE-03)`, with `pyproject.toml` and `uv.lock` only. There was no source commit.
+
+Step F, the bite proof on the committed tree. The Edit tool appended an untyped function to `policy.py`. `git -C <worktree> diff -- packages/prose/src/coh_prose/policy.py`:
+
+```text
+@@ -266,3 +266,7 @@ class ProsePolicy:
+             violations=all_violations,
+             warnings=all_warnings,
+         )
++
++
++def _bite_probe(value):
++    return value
+```
+
+`uv run --no-sync --directory <worktree> mypy --strict packages/prose/src/coh_prose` (exit 1)
+
+```text
+packages/prose/src/coh_prose/policy.py:271: error: Function is missing a type annotation  [no-untyped-def]
+Found 1 error in 1 file (checked 3 source files)
+```
+
+The Edit tool then removed the four added lines.
+
+`git -C <worktree> status --porcelain --untracked-files=all`
+
+```text
+(no output)
+```
+
+The same mypy command again (exit 0):
+
+```text
+Success: no issues found in 3 source files
+```
+
+`.mypy_cache/`: mypy created it at the worktree root. `git status` does not show it, because mypy writes a catch-all `.gitignore` inside it (`ls -a` printed `.gitignore`, `3.15`, `CACHEDIR.TAG`). It was removed with `rm -r <worktree>/.mypy_cache`, per the dispatch rule that no `.mypy_cache` is left behind. Later mypy runs recreate it, so it is removed again before handoff.
