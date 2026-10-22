@@ -145,3 +145,12 @@ Durable product/engineering decisions for the **Cognitive Operating Harness (COH
 - **Alternatives rejected:** rejecting `pathspec`, which leaves TYPE-03 unmet until a mypy release without it is evaluated; running mypy through an unlocked `uvx` (installs the same closure and drops the version pin, ADR-0002 option C); a blanket MPL-2.0 allowance (wider than the one package that needs it).
 - **Reopen when:** COH modifies, vendors or redistributes `pathspec` files, `pathspec` moves out of the dev group, or another MPL-2.0 or weak-copyleft package enters the lock.
 - **Decided:** 2026-10-22, Silver (owner answer to the ADR-0002 decision, chores-q4 Phase 4).
+
+## D18 - PSF-2.0 in pip-audit's CI-only closure
+
+- **Question:** ADR-0003 runs pip-audit 2.10.1 in CI through `uvx --python 3.13`, outside `uv.lock`. Its closure includes `defusedxml` 0.7.1 (PSF-2.0), and `pip` 26.2.2 (MIT) vendors `distlib` (PSF-2.0). The license policy allows MIT, Apache-2.0, BSD and ISC without approval, and no entry approves PSF-2.0. Approve them, or drop pip-audit?
+- **Selected:** Approve `defusedxml` and pip's vendored `distlib` under PSF-2.0 for CI-only use in pip-audit's closure, used unmodified. This entry does not add PSF-2.0 to the allowed list and approves no other package. D16 covers `certifi` in the same closure (owner answer Q4).
+- **Rationale:** PSF-2.0 is a permissive license; its conditions (keeping the copyright notice and license text) apply when the software is redistributed. Running pip-audit in CI installs these packages on the runner and is not distribution. They are not in `uv.lock`, and no COH component ships them.
+- **Alternatives rejected:** rejecting them, which stops the pip-audit half of SUPP-01 until another audit tool is evaluated; allowing PSF-2.0 in general (wider than this closure needs; `typing-extensions`, PSF-2.0 and already in `uv.lock`, stays an open question for a later decision).
+- **Reopen when:** a PSF-2.0 package enters `uv.lock` through a new dependency, pip-audit moves into the dev group or the lock, COH modifies, vendors or redistributes these files, or another license outside the allowed list enters pip-audit's closure.
+- **Decided:** 2026-10-22, Silver (owner answer Q3 to the ADR-0003 decision, chores-q4 Phase 3).
