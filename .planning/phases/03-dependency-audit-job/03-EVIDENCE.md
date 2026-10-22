@@ -1527,3 +1527,28 @@ No known vulnerabilities found
 ```
 
 checks-edits (run 39814528261) has status `waiting`: it waits for the checks-approval environment, which is the owner's action. The lead asked the owner (row qitem-20261022164032-28f215b9d9cbc753) and told the builder not to wait (16:40Z). A pending checks-edits is not a failure (plan Task 5 Step E).
+
+### CI on 573d2b8: stop rule S4
+
+573d2b8 adds only the CI record above (phase docs). Its CI run 39816060961 failed in the pip-audit job. `gh pr checks 39 --repo <repo>`
+
+```text
+Vulnerability audit (pip-audit)	fail	12s
+Dependency check (deptry)	pass	28s
+Secret scan (gitleaks)	pass	6s
+Lint and Test (Python 3.15)	pending	0
+checks-edits	pending	0
+checks-guard	pending	0
+```
+
+pip-audit job output, "Run pip-audit" step (`gh run view 39816060961 --repo <repo> --log --job <id>` piped to `grep`; the job's own script lines are left out)
+
+```text
+Found 1 known vulnerability in 1 package
+opentelemetry-api 1.44.0  CVE-2026-114603 1.45.1
+##[error]Process completed with exit code 1.
+```
+
+The same job passed on 43a4a0d about 12 minutes earlier with `No known vulnerabilities found`, and `uv.lock` did not change between the two heads. So this is a new advisory against an already-locked package. That is stop rule S4: no package is bumped in this phase, and a fix slice lands first (owner answer f1). The lead took the fix choice to the owner (16:47Z). There was no local rerun: the lead ruled the CI run is the evidence. Criterion 6 is FAIL on 573d2b8 until the fix lands.
+
+The fix landed on main as #40 / 3c8b0ec (opentelemetry-api 1.45.1, `uv.lock` only). Main CI on 3c8b0ec is green (run 39839523168). This branch merges main next.
