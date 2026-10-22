@@ -97,5 +97,5 @@ Lead defaults L1-L13: confirmed unchanged by the lead on the dispatch and resume
 
 ## Not covered
 
-- CI on the head: UNKNOWN until the PR run completes (03-VERIFICATION.md criterion 6).
+- CI on 43a4a0d: deptry, pip-audit, Lint and Test, gitleaks and checks-guard pass; checks-edits waits for the owner's checks-approval environment (03-VERIFICATION.md criterion 6).
 - pip-audit's closure on other days, the win32 and emscripten marker sets, other platforms' wheels, and an unreachable vulnerability service.
