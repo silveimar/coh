@@ -42,4 +42,4 @@ Never rewrite an accepted ADR. Write a new ADR that states what changed, set the
 | ADR | Title | Status | Date |
 |---|---|---|---|
 | [0001](0001-uv-dev-dependency-group.md) | Put dev tools in a root uv dependency group | Accepted | 2026-10-09 |
-| [0002](0002-mypy-strict-for-coh-prose.md) | Add mypy to the root dev group and check coh_prose with mypy --strict | Proposed | 2026-10-22 |
+| [0002](0002-mypy-strict-for-coh-prose.md) | Add mypy to the root dev group and check coh_prose with mypy --strict | Accepted | 2026-10-22 |

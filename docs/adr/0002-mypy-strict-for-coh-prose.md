@@ -1,10 +1,10 @@
 # ADR-0002: Add mypy to the root dev group and check coh_prose with mypy --strict
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-22
-- **Deciders:** proposed by the builder seat (chores-q4 Phase 4); owner approval required for Accepted
-- **Slice / PR:** chores-q4 Phase 4, TYPE-03; the draft PR that carries this ADR (its number is added at acceptance)
-- **Decision log:** owner decision needed: pathspec under MPL-2.0 (a transitive dependency of mypy). D16 reopen condition met ("another MPL-2.0 or weak-copyleft package enters the lock").
+- **Deciders:** proposed by the builder seat (chores-q4 Phase 4); accepted by the owner (Q1 accept, Q2 approve), queue row qitem-20261022141325-97bd7544
+- **Slice / PR:** chores-q4 Phase 4, TYPE-03; PR #38
+- **Decision log:** D17 (pathspec under MPL-2.0, dev-only). D16's reopen condition was met ("another MPL-2.0 or weak-copyleft package enters the lock"); D16 stands for certifi.
 
 ## Question
 
@@ -61,7 +61,7 @@ Option A is the only option that meets TYPE-03 with a pinned, locked checker and
 | ast-serialize | 0.13.1 | transitive of mypy | no | MIT (METADATA `License-Expression`; `licenses/crates/LICENSE` lists 16 derived libraries, each with the MIT grant) | yes | `cp315-abi3-manylinux_2_17_x86_64` |
 | librt | 0.16.0 | transitive of mypy | no | MIT (METADATA `License-Expression`) | yes | `cp315-cp315-manylinux_2_17_x86_64` |
 | mypy-extensions | 1.1.0 | transitive of mypy | no | MIT (METADATA `License-Expression`; `licenses/LICENSE` line 1) | yes | `py3-none-any` |
-| pathspec | 1.1.1 | transitive of mypy | no | MPL-2.0 (METADATA classifier; `licenses/LICENSE` line 1) | no: owner decision | `py3-none-any` |
+| pathspec | 1.1.1 | transitive of mypy | no | MPL-2.0 (METADATA classifier; `licenses/LICENSE` line 1) | no: owner approved, D17 | `py3-none-any` |
 | typing-extensions | 4.16.0 | transitive of mypy | yes (4.16.0) | PSF-2.0 (METADATA `License-Expression`) | not new: already locked, unchanged | `py3-none-any` |
 
 The planner's PyPI pre-read showed no license field for mypy-extensions. The installed 1.1.0 wheel declares `License-Expression: MIT`, and its license file says MIT, so it is on the allowed list.
@@ -72,6 +72,8 @@ The planner's PyPI pre-read showed no license field for mypy-extensions. The ins
 - **Q2:** Approve pathspec 1.1.1 under MPL-2.0 as a dev-only transitive dependency of mypy? **Recommended default:** approve for dev-only use on D16's reasoning (dev-only, used unmodified, not vendored or redistributed), recorded by the lead as its own decision-log entry, because D16 approves no other MPL-2.0 package. Alternative: reject; this phase then stops with TYPE-03 unmet until a mypy release without that dependency is evaluated.
 
 No package installed from an sdist build, so there is no sdist question (V3 ran with `--no-build`).
+
+**Owner answers (2026-10-22, queue row qitem-20261022141325-97bd7544):** Q1 accept. Q2 approve; the lead recorded it as D17.
 
 ## Consequences
 
@@ -88,7 +90,7 @@ No package installed from an sdist build, so there is no sdist question (V3 ran 
 ## Compliance checklist
 
 - [x] Stays inside the layer rules: no source change expected; any fix is an annotation in coh_prose only.
-- [ ] New dependency: mypy 2.4.0 (MIT), ast-serialize 0.13.1 (MIT), librt 0.16.0 (MIT), mypy-extensions 1.1.0 (MIT), pathspec 1.1.1 (MPL-2.0). Not ticked: pathspec is outside the allowed list and waits for Q2. Maintenance status: V3 resolved mypy 2.4.0 as the newest release on PyPI; release dates and maintainer activity were not checked.
+- [x] New dependency: mypy 2.4.0 (MIT), ast-serialize 0.13.1 (MIT), librt 0.16.0 (MIT), mypy-extensions 1.1.0 (MIT), pathspec 1.1.1 (MPL-2.0). pathspec is outside the allowed list; the owner approved it for dev-only use (Q2, D17). Maintenance status: V3 resolved mypy 2.4.0 as the newest release on PyPI; release dates and maintainer activity were not checked.
 - [x] Schema change: not applicable.
 - [x] Public API, wire format or archive format: not applicable.
 - [x] No new infrastructure.
@@ -108,7 +110,7 @@ No package installed from an sdist build, so there is no sdist question (V3 ran 
 - `.planning/phases/04-mypy-strict-for-coh-prose/04-CONTEXT.md`
 - `.planning/ROADMAP.md` (Phase 4), `.planning/REQUIREMENTS.md` (TYPE-03)
 - `docs/adr/0001-uv-dev-dependency-group.md`
-- `docs/decision-log.md` D12, D13 and D16
+- `docs/decision-log.md` D12, D13, D16 and D17
 - `CONTRIBUTING.md`, `FLEET-POLICY.md` (Security row)
 - `https://pypi.org/project/mypy/`, `https://pypi.org/project/ast-serialize/`, `https://pypi.org/project/librt/`, `https://pypi.org/project/mypy-extensions/`, `https://pypi.org/project/pathspec/`, `https://pypi.org/project/typing-extensions/`
 - mypy configuration docs: `https://mypy.readthedocs.io/en/stable/config_file.html`
