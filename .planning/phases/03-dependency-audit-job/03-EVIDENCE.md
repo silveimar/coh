@@ -1631,3 +1631,70 @@ Each command is `uv run --directory <worktree> ...`.
 | apps/api | 0 | `Scanning 12 files...` / `Success! No dependency issues found.` |
 
 Local pip-audit: not run. The `uvx ... pip-audit==2.10.1` call raised a permission prompt, which the lead declined (lead decision 19:31Z). The CI pip-audit job on the pushed head is the evidence. Until that job reports, the pip-audit result on this head is unknown, not a pass.
+
+CI on #39 head 2206478 (run 39840990516 and run 39840987979): deptry, pip-audit, Lint and Test and gitleaks pass; checks-edits pending approval; checks-guard fails because it rejects merge commits (checks_guard.py line 388). Force push is Never, so the merge cannot be removed from that branch.
+
+## Rebuild on main as a linear branch (row qitem-20261022203001-939097a52b5928ea)
+
+Owner decision 20:29Z: "New branch and PR, cherry-picked onto main". This branch supersedes #39 and its merge commit 2e73e3b.
+
+Branch `chore/03-dependency-audit-job-v2` in a new worktree `<worktree>` (`coh-wt/03-dependency-audit-job-v2`), created by the lead at origin/main 3c8b0ec (#40). Each pick was one `git -C <worktree> cherry-pick <sha>` call, in this order. 2e73e3b was not picked.
+
+| Old | New | Subject |
+|---|---|---|
+| 6fa1cee | 16cd8ed | docs(03): plan for the deptry and pip-audit jobs |
+| 02105fb | 9b4f934 | ci: deptry and pip-audit jobs (SUPP-01 checks) |
+| 2c6a1e4 | 53ad21e | docs(adr): propose ADR-0003, deptry and pip-audit in CI (SUPP-01) |
+| d92220a | 060bed3 | docs(decision-log): D18, PSF-2.0 in pip-audit's CI-only closure |
+| d3e8da0 | 71930f1 | docs(adr): accept ADR-0003 (owner decision qitem-20261022162351-9cad306d) |
+| 73a48ba | 088a2da | build(deps): add deptry 0.25.1 to the root dev group (ADR-0003, SUPP-01) |
+| 67d62d8 | 43018d4 | chore(deps): deptry config per member and the D-04 split (ADR-0003, SUPP-01) |
+| ca26cc3 | ef9f692 | docs(03): build evidence |
+| 43a4a0d | 1c59f0c | docs(03): verification, summary and evidence |
+| 573d2b8 | afe5c21 | docs(03): record CI on the head |
+| 154e5aa | 243be09 | docs(03): record S4 stop on 573d2b8 and the fix on main (#40) |
+| 2206478 | d1ba8fd | docs(03): evidence for the main merge and local checks on 2e73e3b |
+
+uv.lock resolution: none was needed. The picks of 73a48ba and 67d62d8 each printed `Auto-merging uv.lock` and committed without a conflict, so the row's `checkout --ours` / `uv lock` / `cherry-pick --continue` path did not run. No file conflicted.
+
+Checks after the last pick:
+
+- `git -C <worktree> log --merges origin/main..HEAD` printed nothing.
+- `git -C <worktree> log --format="%h %ae %s" origin/main..HEAD` lists the 12 commits. 16cd8ed, 9b4f934 and 060bed3 are authored by `lead-seat@coh-fleet.invalid`; the other 9 by `<builder>`.
+- `git -C <worktree> diff 2206478 HEAD --stat` printed nothing: the tree at d1ba8fd is identical to #39's head.
+- `uv lock --directory <worktree> --check` (exit 0): `Resolved 75 packages in 0.85ms`.
+- `grep -n -A1 'name = "opentelemetry-api"' <worktree>/uv.lock`: line 818 `name = "opentelemetry-api"`, line 819 `version = "1.45.1"`.
+
+### Local checks on d1ba8fd
+
+`uv sync --directory <worktree> --all-packages --locked` (exit 0) created a fresh `.venv` and installed 71 packages, including `+ deptry==0.25.1`, `+ requirements-parser==0.13.1` and `+ opentelemetry-api==1.45.1`.
+
+Each command is `uv run --directory <worktree> ...`.
+
+| Check | Result |
+|---|---|
+| `ruff check .` | `All checks passed!` |
+| `ruff format --check .` | `195 files already formatted` |
+| `pytest tests/packages/execution-core -q` | `199 passed` |
+| `pytest tests/packages/persistence -q` | `9 passed` |
+| `pytest tests/packages/archive -q` | `33 passed` |
+| `pytest tests/packages/prose -q` | `36 passed` |
+| `pytest tests/packages/mcp_adapter -q` | `39 passed` |
+| `pytest tests/packages/application -q` | `27 passed` |
+| `pytest tests/apps/api -q` | `9 passed, 2 warnings` |
+| `pytest tests/evals -q --tb=short` | `18 passed, 5 skipped, 1 xfailed` |
+| `pytest tests/guard -q` | `90 passed` |
+
+`uv run --no-sync --directory <worktree> deptry --version`: `deptry 0.25.1`. Then `uv run --no-sync --directory <worktree> deptry --no-ansi <m> --config <m>/pyproject.toml` for each member:
+
+| Member | Exit | Output |
+|---|---|---|
+| packages/archive | 0 | `Scanning 5 files...` / `Success! No dependency issues found.` |
+| packages/execution-core | 0 | `Scanning 24 files...` / `Success! No dependency issues found.` |
+| packages/persistence | 0 | `Scanning 11 files...` / `Success! No dependency issues found.` |
+| packages/prose | 0 | `Scanning 3 files...` / `Success! No dependency issues found.` |
+| packages/mcp_adapter | 0 | `Scanning 6 files...` / `Success! No dependency issues found.` |
+| packages/application | 0 | `Scanning 3 files...` / `Success! No dependency issues found.` |
+| apps/api | 0 | `Scanning 12 files...` / `Success! No dependency issues found.` |
+
+Local pip-audit: not run, per the row (CI's pip-audit job is the evidence). On this head it is unknown until CI reports.
