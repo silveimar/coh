@@ -50,6 +50,12 @@ jobs:
       - name: Run prose tests
         run: uv run pytest tests/packages/prose --cov=packages/prose/src --cov-append --cov-report=xml --cov-report=term
 
+      # COV-01: statement floor for prose alone (276/293 = 94.2% at d7f3316).
+      # The prose step above appends to the cumulative .coverage data, so
+      # --include limits the report to prose; no prose data fails closed.
+      - name: Check prose coverage floor
+        run: uv run coverage report --include='packages/prose/src/*' --fail-under=94
+
       - name: Run mcp_adapter tests
         run: uv run pytest tests/packages/mcp_adapter --cov=packages/mcp_adapter/src --cov-append --cov-report=xml --cov-report=term
 
