@@ -63,16 +63,16 @@ name = "application"
 version = "0.1.0"
 source = { editable = "packages/application" }
 dependencies = [
-    { name = "coh-archive" },
     { name = "execution-core" },
     { name = "persistence" },
+    { name = "sqlalchemy" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "coh-archive", editable = "packages/archive" },
     { name = "execution-core", editable = "packages/execution-core" },
     { name = "persistence", editable = "packages/persistence" },
+    { name = "sqlalchemy", specifier = ">=2.0.0" },
 ]
 
 [[package]]
@@ -188,7 +188,6 @@ version = "0.1.0"
 source = { editable = "apps/api" }
 dependencies = [
     { name = "application" },
-    { name = "execution-core" },
     { name = "fastapi" },
     { name = "persistence" },
     { name = "pydantic" },
@@ -198,7 +197,6 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "application", editable = "packages/application" },
-    { name = "execution-core", editable = "packages/execution-core" },
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "persistence", editable = "packages/persistence" },
     { name = "pydantic", specifier = ">=2.9.0" },

@@ -29,3 +29,18 @@ persistence = { workspace = true }
 coh-archive = { workspace = true }
 prose = { workspace = true }
 application = { workspace = true }
+
+[tool.deptry]
+known_first_party = ["coh_mcp"]
+
+[tool.deptry.package_module_name_map]
+application = "coh_application"
+prose = "coh_prose"
+
+[tool.deptry.per_rule_ignores]
+# Layer-rule violation, not a missing dependency: handlers.py has 4 inline
+# `from sqlalchemy import select` sites, so MCP tools reach the database
+# instead of calling application services (AGENTS.md hard rules;
+# .planning/codebase/CONCERNS.md). Remove this ignore when that is fixed.
+# Do not declare sqlalchemy in this package instead.
+DEP003 = ["sqlalchemy"]
