@@ -652,3 +652,234 @@ Y1 `uv run --no-sync --directory <worktree> pyright --outputjson apps/api | jq '
 | `grep -c -F 'Placeholder package (docstring only)' <worktree>/apps/api/README.md` | `1` |
 | `grep -n -F '(WAL mode, auto-created on first run)' <worktree>/apps/api/README.md` | `57:**Database:** SQLite at ...` (D-10, unchanged) |
 | `grep -n -F 'Huey worker integration' <worktree>/apps/api/README.md` | `168:6. **Huey worker integration** for async inspection/verification (planned; Decision D2)` |
+
+Committed as 6d1cd0b.
+
+## Task 5 path checks
+
+These ran at 6d1cd0b, the committed Task 4 head. Command P for each file is the plan's regex: `grep -n -o -E '[A-Za-z0-9_.~{}<>-]*/[A-Za-z0-9_./~{}<>-]*|[A-Za-z0-9_-]+\.(md|py|toml|ini|yaml|yml|json|lock|db|mako|cfg|txt)|\.(coveragerc|python-version|gitignore)' <worktree>/<file>`. The token counts (the same grep piped to `wc -l`):
+
+| File | Tokens |
+|---|---|
+| README.md | 53 |
+| docs/coding-rules.md, `## Repository Structure` (lines 20-65; bounds from `19:## Repository Structure` and `66:## Project Status`) | 39 (counted from the Command P output on the whole file, lines 25-64) |
+| packages/execution-core/README.md | 45 |
+| packages/persistence/README.md | 27 |
+| packages/archive/README.md | 23 |
+| packages/prose/README.md | 10 |
+| packages/mcp_adapter/README.md | 22 |
+| packages/application/README.md | 20 |
+| apps/api/README.md | 68 |
+
+The per-token classification is in 05-VERIFICATION.md. Below are the `ls -d` results: one call per file, with every resolved R and P path of that file as an argument.
+
+### README.md
+
+```text
+<worktree>/.coveragerc
+<worktree>/apps
+<worktree>/apps/api
+<worktree>/apps/api/README.md
+<worktree>/docs
+<worktree>/docs/behavioral-contract.md
+<worktree>/docs/coding-rules.md
+<worktree>/docs/decision-log.md
+<worktree>/docs/feature-specs
+<worktree>/docs/glossary.md
+<worktree>/packages
+<worktree>/packages/application
+<worktree>/packages/application/README.md
+<worktree>/packages/archive
+<worktree>/packages/archive/README.md
+<worktree>/packages/execution-core
+<worktree>/packages/execution-core/README.md
+<worktree>/packages/execution-core/src
+<worktree>/packages/mcp_adapter
+<worktree>/packages/mcp_adapter/README.md
+<worktree>/packages/persistence
+<worktree>/packages/persistence/README.md
+<worktree>/packages/persistence/alembic
+<worktree>/packages/prose
+<worktree>/packages/prose/README.md
+<worktree>/pyproject.toml
+<worktree>/pytest.ini
+<worktree>/tests
+<worktree>/tests/apps
+<worktree>/tests/apps/api
+<worktree>/tests/evals
+<worktree>/tests/packages
+<worktree>/tests/packages/application
+<worktree>/tests/packages/archive
+<worktree>/tests/packages/execution-core
+<worktree>/tests/packages/mcp_adapter
+<worktree>/tests/packages/persistence
+<worktree>/tests/packages/prose
+```
+
+### docs/coding-rules.md, Repository Structure section (exit 2; the 8 missing paths are the 8 planned ones)
+
+```text
+ls: cannot access '<worktree>/apps/worker': No such file or directory
+ls: cannot access '<worktree>/apps/web': No such file or directory
+ls: cannot access '<worktree>/packages/agent-runtime': No such file or directory
+ls: cannot access '<worktree>/packages/python-client': No such file or directory
+ls: cannot access '<worktree>/frontend': No such file or directory
+ls: cannot access '<worktree>/frontend/generated-api': No such file or directory
+ls: cannot access '<worktree>/package.json': No such file or directory
+ls: cannot access '<worktree>/pnpm-lock.yaml': No such file or directory
+<worktree>/apps
+<worktree>/apps/api
+<worktree>/apps/api/src/coh_api
+<worktree>/apps/api/src/coh_api/api
+<worktree>/apps/api/src/coh_api/application
+<worktree>/apps/api/src/coh_api/composition.py
+<worktree>/docs
+<worktree>/packages
+<worktree>/packages/application
+<worktree>/packages/archive
+<worktree>/packages/execution-core
+<worktree>/packages/execution-core/src/execution_core
+<worktree>/packages/execution-core/src/execution_core/domain
+<worktree>/packages/execution-core/src/execution_core/events
+<worktree>/packages/execution-core/src/execution_core/policies
+<worktree>/packages/execution-core/src/execution_core/state_machine
+<worktree>/packages/mcp_adapter
+<worktree>/packages/persistence
+<worktree>/packages/persistence/alembic
+<worktree>/packages/persistence/alembic.ini
+<worktree>/packages/prose
+<worktree>/pyproject.toml
+<worktree>/tests
+<worktree>/tests/evals
+<worktree>/uv.lock
+```
+
+### packages/execution-core/README.md
+
+```text
+<worktree>/apps/api
+<worktree>/docs/adr/0001-uv-dev-dependency-group.md
+<worktree>/docs/behavioral-contract.md
+<worktree>/docs/coding-rules.md
+<worktree>/packages/archive
+<worktree>/packages/execution-core/src/execution_core
+<worktree>/packages/execution-core/src/execution_core/domain
+<worktree>/packages/execution-core/src/execution_core/domain/checkpoint.py
+<worktree>/packages/execution-core/src/execution_core/domain/clock.py
+<worktree>/packages/execution-core/src/execution_core/domain/commands.py
+<worktree>/packages/execution-core/src/execution_core/domain/decision.py
+<worktree>/packages/execution-core/src/execution_core/domain/enums.py
+<worktree>/packages/execution-core/src/execution_core/domain/evidence.py
+<worktree>/packages/execution-core/src/execution_core/domain/foreground.py
+<worktree>/packages/execution-core/src/execution_core/domain/parking_item.py
+<worktree>/packages/execution-core/src/execution_core/domain/session.py
+<worktree>/packages/execution-core/src/execution_core/domain/specification.py
+<worktree>/packages/execution-core/src/execution_core/domain/task.py
+<worktree>/packages/execution-core/src/execution_core/events
+<worktree>/packages/execution-core/src/execution_core/events/domain_events.py
+<worktree>/packages/execution-core/src/execution_core/policies
+<worktree>/packages/execution-core/src/execution_core/policies/completion_policy.py
+<worktree>/packages/execution-core/src/execution_core/policies/foreground_policy.py
+<worktree>/packages/execution-core/src/execution_core/policies/integrity_policy.py
+<worktree>/packages/execution-core/src/execution_core/policies/parking_policy.py
+<worktree>/packages/execution-core/src/execution_core/policies/permission_policy.py
+<worktree>/packages/execution-core/src/execution_core/policies/readiness_policy.py
+<worktree>/packages/execution-core/src/execution_core/state_machine
+<worktree>/packages/execution-core/src/execution_core/state_machine/lifecycle.py
+<worktree>/packages/mcp_adapter
+<worktree>/packages/persistence
+<worktree>/pyproject.toml
+<worktree>/tests/packages/execution-core
+<worktree>/tests/packages/execution-core/test_properties.py
+```
+
+### packages/persistence/README.md
+
+```text
+<worktree>/apps/api
+<worktree>/apps/api/src/coh_api/composition.py
+<worktree>/packages/archive
+<worktree>/packages/mcp_adapter
+<worktree>/packages/mcp_adapter/src/coh_mcp/handlers.py
+<worktree>/packages/persistence
+<worktree>/packages/persistence/alembic
+<worktree>/packages/persistence/alembic.ini
+<worktree>/packages/persistence/alembic/env.py
+<worktree>/packages/persistence/src/persistence/infrastructure/database.py
+<worktree>/packages/persistence/src/persistence/infrastructure/mappers.py
+<worktree>/packages/persistence/src/persistence/infrastructure/models.py
+<worktree>/packages/persistence/src/persistence/infrastructure/repositories.py
+<worktree>/packages/persistence/src/persistence/infrastructure/unit_of_work.py
+<worktree>/tests/packages/persistence
+<worktree>/tests/packages/persistence/test_crash_restart.py
+```
+
+### packages/archive/README.md
+
+```text
+<worktree>/packages/execution-core/src/execution_core/domain/checkpoint.py
+<worktree>/packages/mcp_adapter/src/coh_mcp/archive_wiring.py
+<worktree>/packages/mcp_adapter/src/coh_mcp/handlers.py
+<worktree>/tests/packages/archive
+<worktree>/tests/packages/archive/test_integration.py
+<worktree>/tests/packages/archive/test_markdown.py
+<worktree>/tests/packages/archive/test_paths.py
+<worktree>/tests/packages/archive/test_service.py
+```
+
+### packages/prose/README.md
+
+```text
+<worktree>/docs/behavioral-contract.md
+<worktree>/packages/mcp_adapter/src/coh_mcp/handlers.py
+<worktree>/packages/prose/src/coh_prose
+<worktree>/packages/prose/src/coh_prose/__init__.py
+<worktree>/packages/prose/src/coh_prose/policy.py
+<worktree>/packages/prose/src/coh_prose/renderer.py
+<worktree>/tests/packages/prose
+```
+
+### packages/mcp_adapter/README.md
+
+```text
+<worktree>/apps/api
+<worktree>/packages/mcp_adapter/src
+<worktree>/packages/mcp_adapter/src/coh_mcp/archive_wiring.py
+<worktree>/packages/mcp_adapter/src/coh_mcp/handlers.py
+<worktree>/tests/packages/mcp_adapter
+```
+
+### packages/application/README.md
+
+```text
+<worktree>/apps/api
+<worktree>/apps/api/src/coh_api/api/routes/foreground.py
+<worktree>/apps/api/src/coh_api/api/routes/spec_gate.py
+<worktree>/packages/application/src
+<worktree>/packages/mcp_adapter/src/coh_mcp/server.py
+<worktree>/tests/packages/application
+```
+
+### apps/api/README.md
+
+```text
+<worktree>/AGENTS.md
+<worktree>/CONTRIBUTING.md
+<worktree>/apps/api
+<worktree>/apps/api/src
+<worktree>/apps/api/src/coh_api
+<worktree>/apps/api/src/coh_api/api
+<worktree>/apps/api/src/coh_api/api/routes
+<worktree>/apps/api/src/coh_api/api/routes/foreground.py
+<worktree>/apps/api/src/coh_api/api/routes/spec_gate.py
+<worktree>/apps/api/src/coh_api/api/schemas
+<worktree>/apps/api/src/coh_api/api/schemas/common.py
+<worktree>/apps/api/src/coh_api/api/schemas/foreground.py
+<worktree>/apps/api/src/coh_api/api/schemas/spec_gate.py
+<worktree>/apps/api/src/coh_api/application
+<worktree>/apps/api/src/coh_api/composition.py
+<worktree>/apps/api/src/coh_api/main.py
+<worktree>/docs/coding-rules.md
+<worktree>/docs/decision-log.md
+<worktree>/tests/apps/api
+```
