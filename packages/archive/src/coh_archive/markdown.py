@@ -219,9 +219,7 @@ class MarkdownArchiveWriter:
         self.archive_dir.mkdir(parents=True, exist_ok=True)
 
         entry_id = generate_entry_id(event.actor, event.time, event.content)
-        session_file, part = self._find_current_session_file(
-            event.session_id, event.time
-        )
+        session_file, _ = self._find_current_session_file(event.session_id, event.time)
 
         is_new_file = not session_file.exists()
 
@@ -302,9 +300,7 @@ class MarkdownArchiveWriter:
                 artifact_refs.append(artifact_name)
                 event.output_payload = None
 
-        session_file, part = self._find_current_session_file(
-            event.session_id, event.time
-        )
+        session_file, _ = self._find_current_session_file(event.session_id, event.time)
         is_new_file = not session_file.exists()
 
         if is_new_file:

@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from .markdown import MarkdownArchiveWriter
 from .models import (
@@ -135,7 +136,7 @@ class ArchiveService:
 
         try:
             writer = self._ensure_writer()
-            pointer, artifacts = await writer.write_tool_event(event)
+            pointer, _ = await writer.write_tool_event(event)
 
             return ArchiveWriteResult(
                 outcome=WriteOutcome.WRITTEN,
@@ -186,7 +187,9 @@ class ArchiveService:
                 project_root=self.project_root,
             )
 
-    def read_session_archive(self, session_file: Path) -> tuple[dict, list[str]]:
+    def read_session_archive(
+        self, session_file: Path
+    ) -> tuple[dict[str, Any], list[str]]:
         """
         Read and parse session archive file.
 
