@@ -1408,3 +1408,71 @@ uv.lock
 ```
 
 No `pyproject.toml` or `uv.lock` path appears before the accept commit d3e8da0.
+
+## Task 5 (final gates)
+
+Run at ca26cc3 (`git -C <worktree> rev-parse HEAD` printed `ca26cc3f63a179b25045d80f013bbe4d292a6cea`). Nothing of ci.yml is pasted beyond these greps (plan finding 11); the error-tolerance key is counted with the pattern `on-error`.
+
+Criterion 1: `grep -c -F '**Status:** Accepted'` on the ADR, `grep -n -F '| [0003](0003-dependency-audit-deptry-pip-audit.md) |' <worktree>/docs/adr/README.md`, and `grep -n -E '^\| (deptry|pip-audit) \|'` on the ADR
+
+```text
+1
+46:| [0003](0003-dependency-audit-deptry-pip-audit.md) | Check dependencies in CI with deptry and pip-audit | Accepted | 2026-10-22 |
+75:| deptry | 0.25.1 | direct, root dev group | no | MIT (METADATA `License-Expression`) | yes | `cp310-abi3-manylinux_2_17_x86_64` |
+86:| pip-audit | 2.10.1 | Apache-2.0 (classifier) | yes | `py3-none-any` |
+```
+
+Criterion 2: ci.yml is unchanged since the lead's 02105fb (`git -C <worktree> diff --stat 02105fb HEAD -- .github` prints nothing), so `grep -nE 'deptry|pip-audit'` prints the PCL12 lines above; `grep -c -E 'deptry|pip-audit' <worktree>/.github/workflows/ci.yml` counts them, and `grep -n -E 'deptry 0\.25\.1|pip-audit==2\.10\.1'` shows the pins
+
+```text
+25
+206:          if [ "$rc" -ne 0 ] || [ "$v" != "deptry 0.25.1" ]; then
+207:            echo "::error::deptry version gate: expected 'deptry 0.25.1' with exit 0, got '$v' (exit $rc)"
+297:          uvx --python 3.13 pip-audit==2.10.1 --strict --disable-pip --progress-spinner off -r "$RUNNER_TEMP/requirements.txt" 2>&1 | tee "$RUNNER_TEMP/pip-audit.log" || rc=$?
+```
+
+Then `grep -c "on-error"`, `grep -c -F -- '--strict --disable-pip'`, `git -C <worktree> log --format=%ae origin/main..HEAD -- .github/workflows/` and `git -C <worktree> diff --numstat origin/main...HEAD -- .github/workflows/ci.yml`
+
+```text
+0
+1
+lead-seat@coh-fleet.invalid
+131	0	.github/workflows/ci.yml
+```
+
+Criterion 3 and criterion 4: Task 4 Step D (67 pins, 4 of `fastapi|sqlalchemy|mcp|pyyaml`, 0 `-e` lines; 7 deptry runs exit 0; pip-audit exit 0). `uv lock --check --directory <worktree>`
+
+```text
+Resolved 75 packages in 0.81ms
+exit=0
+```
+
+Criterion 5: Task 4 Step E (deptry bite exit 1 with DEP002; pip-audit bite exit 1 with `requests 2.19.1` rows).
+
+File scope, `git -C <worktree> diff --name-only origin/main...HEAD`. Every path is in the plan's `files_modified`, or comes from a lead-seat commit: ci.yml (02105fb), the plan (6fa1cee), and `README.md` and `docs/decision-log.md` (d92220a, allowed by the resume row).
+
+```text
+.github/workflows/ci.yml
+.planning/phases/03-dependency-audit-job/03-01-PLAN.md
+.planning/phases/03-dependency-audit-job/03-EVIDENCE.md
+README.md
+apps/api/pyproject.toml
+docs/adr/0003-dependency-audit-deptry-pip-audit.md
+docs/adr/README.md
+docs/decision-log.md
+packages/application/pyproject.toml
+packages/archive/pyproject.toml
+packages/execution-core/pyproject.toml
+packages/mcp_adapter/pyproject.toml
+packages/persistence/pyproject.toml
+packages/prose/pyproject.toml
+pyproject.toml
+uv.lock
+```
+
+Privacy:
+- `git -C <worktree> diff origin/main...HEAD -- docs/adr .planning/phases/03-dependency-audit-job/03-EVIDENCE.md | grep -c -i -E "^\+.*(author[-]email|maintainer[-]email|copyright [(]c[)]|copyright [0-9])"` prints `0`.
+- Decider name from the decision-log Decided lines: 0 matches in the diff outside `docs/decision-log.md`. The full diff has 1 match: the lead's D18 Decided line, which follows the log's convention.
+- `/(home|tmp)/` count: 0 in each phase file and the ADR.
+
+Self-scan for checks-guard weakening tokens: 0 in the ADR, the ADR index, the root and 7 member `pyproject.toml` files and this file.
