@@ -172,3 +172,134 @@ jobs:
           fi
           scan "full history" full || status=1
           exit $status
+
+  # SUPP-01: deptry per workspace member (03-CONTEXT D-01, D-11). Findings and
+  # ignores live in each member's [tool.deptry] table, never on this command line.
+  deptry:
+    name: Dependency check (deptry)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "0.13.0"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.15"
+
+      - name: Install dependencies
+        run: uv sync --all-packages --locked
+
+      # deptry is a root dev dependency; a version bump needs a lead checks commit.
+      - name: Check the deptry version
+        run: |
+          rc=0
+          v="$(uv run --no-sync deptry --version 2>&1)" || rc=$?
+          echo "$v"
+          if [ "$rc" -ne 0 ] || [ "$v" != "deptry 0.25.1" ]; then
+            echo "::error::deptry version gate: expected 'deptry 0.25.1' with exit 0, got '$v' (exit $rc)"
+            exit 1
+          fi
+
+      - name: Run deptry on each member
+        run: |
+          # The default shell is `bash -e` without pipefail; without this line
+          # the `| tee` below would hide the deptry exit code.
+          set -o pipefail
+
+          # A member fails when deptry exits non-zero or scans no file. deptry
+          # prints "Scanning 0 file..." (singular) for an empty root.
+          members="packages/archive packages/execution-core packages/persistence packages/prose packages/mcp_adapter packages/application apps/api"
+          failed=""
+          ran=0
+          for member in $members; do
+            ran=$((ran + 1))
+            rc=0
+            uv run --no-sync deptry --no-ansi "$member" --config "$member/pyproject.toml" 2>&1 | tee "$RUNNER_TEMP/deptry.log" || rc=$?
+            files=$(grep -oE 'Scanning [0-9]+ files?' "$RUNNER_TEMP/deptry.log" | grep -oE '[0-9]+' | head -n 1) || files=0
+            files=${files:-0}
+            if [ "$rc" -ne 0 ] || [ "$files" -eq 0 ]; then
+              failed="$failed $member"
+            fi
+            {
+              echo "### deptry: $member"
+              echo
+              echo "Exit code $rc, $files files scanned."
+              echo
+              echo '```text'
+              cat "$RUNNER_TEMP/deptry.log"
+              echo '```'
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          # A new workspace member must be added to the list above.
+          found=$(find packages apps -mindepth 2 -maxdepth 2 -name pyproject.toml | wc -l)
+          status=0
+          if [ "$ran" -ne 7 ] || [ "$found" -ne 7 ]; then
+            echo "::error::deptry ran on $ran members; the workspace has $found member pyproject.toml files; expected 7 and 7"
+            status=1
+          fi
+          if [ -n "$failed" ]; then
+            echo "::error::deptry failed for:$failed"
+            status=1
+          fi
+          exit $status
+
+  # SUPP-01: pip-audit on the locked export (03-CONTEXT D-05, D-08, D-11).
+  pip-audit:
+    name: Vulnerability audit (pip-audit)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "0.13.0"
+
+      # Hashes stay in the export: --disable-pip needs them.
+      - name: Export the locked requirements
+        run: uv export --locked --all-packages --no-emit-workspace --format requirements.txt -o "$RUNNER_TEMP/requirements.txt"
+
+      # Fail closed on an empty, partial or editable export.
+      - name: Check the export
+        run: |
+          req="$RUNNER_TEMP/requirements.txt"
+          fail() {
+            echo "::error::requirements export: $1"
+            echo "**Export check failed: $1**" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          }
+          [ -s "$req" ] || fail "file missing or empty"
+          pins=$(grep -cE '^[A-Za-z0-9._-]+==' "$req") || pins=0
+          echo "Pinned requirements in the export: $pins" >> "$GITHUB_STEP_SUMMARY"
+          [ "$pins" -ge 50 ] || fail "$pins pinned lines; expected at least 50"
+          grep -qE '^sqlalchemy==' "$req" || fail "no sqlalchemy pin"
+          if grep -qE '^-e ' "$req"; then
+            fail "editable (-e) line present"
+          fi
+
+      - name: Run pip-audit
+        run: |
+          set -o pipefail
+          rc=0
+          uvx --python 3.13 pip-audit==2.10.1 --strict --disable-pip --progress-spinner off -r "$RUNNER_TEMP/requirements.txt" 2>&1 | tee "$RUNNER_TEMP/pip-audit.log" || rc=$?
+          {
+            echo "### pip-audit (exit code $rc)"
+            echo
+            echo '```text'
+            cat "$RUNNER_TEMP/pip-audit.log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
