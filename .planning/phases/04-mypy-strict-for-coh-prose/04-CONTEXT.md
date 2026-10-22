@@ -17,16 +17,17 @@ Out of scope: mypy on `tests/packages/prose` (protected); mypy on any other pack
 ## Implementation Decisions
 
 ### Scope
-- **D-01:** "One new module" is read as one existing module new to mypy: the `coh_prose` package. No new code is written (chore-only mission). Open question for the owner.
+- **D-01:** "One new module" is read as one existing module new to mypy: the `coh_prose` package. No new code is written (chore-only mission). Owner accepted this reading (Q10, 2026-10-22).
 - **D-02:** Only the source tree is checked.
 
 ### Dependency and ADR
 - **D-03:** A new ADR at the next free number in `docs/adr/` decides mypy: version (floor = locked version, ADR 0001 amendment), CPython 3.15 support and wheel availability, and the license of mypy and every new transitive package. Any license outside MIT/Apache-2.0/BSD/ISC (pathspec may be MPL-2.0) is an owner decision. If a transitive package has no cp315 wheel and its sdist fails, D13's reopen condition applies: stop and raise it.
-- **D-04:** The ADR is the first commit of the phase PR and the build waits for its acceptance. If Phase 3 is open at the same time, the two ADRs take distinct numbers; the second to start rebases.
+- **D-03a (amended 2026-10-22, owner accepted review finding 6):** Before drafting the decision, the ADR work first verifies, on Python 3.15 locally, that the chosen mypy release accepts `python_version = "3.15"` and that every package in its dependency closure (including compiled runtime dependencies) installs from a cp315 wheel. Both results go into the ADR with the command output.
+- **D-04:** The ADR is the first commit of the phase PR and the build waits for its acceptance. Phases 3 and 4 never open at the same time (ROADMAP execution order), so the ADR takes the next free number.
 - **D-05:** mypy goes into the root `[dependency-groups] dev` (ADR 0001), so CI's `uv sync --all-packages` installs it.
 
 ### Config
-- **D-06:** Root `pyproject.toml` `[tool.mypy]`: `strict = true`, `python_version = "3.15"`. No `[[tool.mypy.overrides]]`, no `ignore_*`, no `follow_imports`, no pydantic plugin (its default types `__init__` args as `Any`, weaker than dataclass_transform).
+- **D-06:** Root `pyproject.toml` `[tool.mypy]`: `strict = true`, `python_version = "3.15"`. If D-03a shows mypy refuses `python_version = "3.15"`, drop the key (mypy then targets the running 3.15 interpreter); never set a lower version. No `[[tool.mypy.overrides]]`, no `ignore_*`, no `follow_imports`, no pydantic plugin (its default types `__init__` args as `Any`, weaker than dataclass_transform).
 - **D-07:** Scope comes from the checked path in the CI command: `uv run mypy --strict packages/prose/src/coh_prose`.
 
 ### Source

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `CONTRIBUTING.md` ("Known gaps") and `.planning/codebase/CONCERNS.md`. Every phase is a chore, test or docs phase, and each one ships as one PR. The phases do not depend on each other, so any of them can go next within the WIP cap of 2 open PRs. Phases 3, 4 and 6 change the protected check set: the lead writes those checks commits, and the builder never does.
+Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `CONTRIBUTING.md` ("Known gaps") and `.planning/codebase/CONCERNS.md`. Every phase is a chore, test or docs phase, and each one ships as one PR. The phases have no code dependency on each other; they run in the fixed order under "Execution Order" below, within the WIP cap of 2 open PRs. Phases 3, 4 and 6 change the protected check set: the lead writes those checks commits, and the builder never does.
 
 ## Phases
 
@@ -49,7 +49,7 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
 **Type**: chore (CI)
 **Depends on**: Nothing (independent); an accepted ADR for the two tools is required before build
 **Requirements**: SUPP-01
-**Protected check set**: YES — `.github/workflows/`. The lead writes the CI jobs in a checks commit; the builder writes only the ADR draft, `pyproject.toml` config and, if the owner picks truthful manifests (03-CONTEXT D-04), member dependencies and `uv.lock`.
+**Protected check set**: YES — `.github/workflows/`. The lead writes the CI jobs in a checks commit; the builder writes only the ADR draft, `pyproject.toml` config, the member dependency changes in 03-CONTEXT D-04 (owner answer: split) and `uv.lock`.
 **Success Criteria** (what must be TRUE):
   1. An accepted ADR in `docs/adr/` covers deptry and pip-audit (license, pinning, how they run).
   2. A CI job runs both tools on every PR and push to `main` and is green on the PR head.
@@ -95,7 +95,7 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
 ## Progress
 
 **Execution Order:**
-Phases are independent. The lead picks the next one; at most 2 PRs are open at a time.
+1, 2, 6, 5, 4, 3 (owner answer, 2026-10-22): cheap and mechanical phases first, Phase 6 is lead-only, the two ADR phases last. At most 2 PRs are open at a time. Phases 3 and 4 both change the root dev group and `uv.lock`, so they are never open at the same time.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|

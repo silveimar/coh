@@ -24,7 +24,7 @@ Out of scope (do not edit): every other section of `docs/coding-rules.md` (heade
 
 ### README.md
 - **D-05:** "Seven packages" = six under `packages/` plus `apps/api` (`pyproject.toml` workspace members). The structure tree and the Packages section both list all seven, each linking to its README.
-- **D-06:** Both decision ranges (lines 15 and 87) become `D1-D15` (15 entries, no gaps).
+- **D-06:** Both decision ranges (lines 15 and 87) become `D1-D15` (15 entries, no gaps). The owner-approved `certifi` MPL-2.0 entry (Q13, 2026-10-22) is appended to `docs/decision-log.md` by the lead only after this phase merges, so criterion 3 stays at `D1-D15` and 15 entries.
 - **D-07:** The status line (`README.md:3`) stays unchanged; its wording is the owner's (open question).
 
 ### Package READMEs
