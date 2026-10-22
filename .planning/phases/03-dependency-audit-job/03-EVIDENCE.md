@@ -1129,3 +1129,282 @@ After T10, `git -C <worktree> status --porcelain --untracked-files=all --ignored
 - S4 (advisory): did not fire. D3 and T9 report no known vulnerability.
 - S5 (D-06): did not fire. D5 exits 0 and D4 shows `skipped: []`; no exclusion is needed.
 - S6 (tracer): did not fire. All 7 T8 runs exit 0 with the planned file counts, T5 prints 4, T6 prints the 17 planned lines, T9 exits 0, and T10 equals B1 + B2 + B3.
+
+## Task 4 (build)
+
+Resume row qitem-20261022162351-9cad306d: the owner accepted ADR-0003 (Q1 and Q2 accept, Q3 approve CI-only as D18, Q4 confirm under D16, Q5 accept). The lead's D18 commit d92220a was already the worktree HEAD (`git -C <worktree> pull --ff-only` printed `Already up to date.`; `git log -3` showed d92220a on top). L1-L13 unchanged.
+
+### Step A: acceptance
+
+ADR-0003 set to Accepted (Deciders, PR #39, Decision log D18 and D16, owner answers line, tables, checklist, reopen line); index row set to Accepted. Commit d3e8da0 `docs(adr): accept ADR-0003 (owner decision qitem-20261022162351-9cad306d)`.
+
+### Step B: deptry in the root dev group
+
+`uv add --directory <worktree> --dev --no-sync "deptry==0.25.1"` (exit 0)
+
+```text
+Using CPython 3.15.0
+Resolved 75 packages in 142ms
+```
+
+The Edit tool changed `"deptry==0.25.1",` to `"deptry>=0.25.1",`. Then `uv lock --directory <worktree>` (exit 0) and `git -C <worktree> diff --numstat`
+
+```text
+Using CPython 3.15.0
+Resolved 75 packages in 6ms
+1	0	pyproject.toml
+36	0	uv.lock
+```
+
+Self-scan of the added lines: 0. Commit 73a48ba `build(deps): add deptry 0.25.1 to the root dev group (ADR-0003, SUPP-01)`.
+
+### Step C: member config and the D-04 split
+
+T-CFG and T-DEP applied with the Edit tool, exactly as in the tracer. Then `uv lock --directory <worktree>`, `uv lock --check --directory <worktree>` and `git -C <worktree> diff --numstat`
+
+```text
+Using CPython 3.15.0
+Resolved 75 packages in 6ms
+Using CPython 3.15.0
+Resolved 75 packages in 0.86ms
+exit=0
+11	1	apps/api/pyproject.toml
+4	2	packages/application/pyproject.toml
+3	0	packages/archive/pyproject.toml
+3	0	packages/execution-core/pyproject.toml
+15	0	packages/mcp_adapter/pyproject.toml
+3	0	packages/persistence/pyproject.toml
+3	0	packages/prose/pyproject.toml
+2	4	uv.lock
+```
+
+Self-scan of the added lines: 0. Commit 67d62d8 `chore(deps): deptry config per member and the D-04 split (ADR-0003, SUPP-01)`.
+
+### Step D: the real entry points on the committed tree
+
+`uv sync --directory <worktree> --all-packages --locked` (exit 0)
+
+```text
+Using CPython 3.15.0
+Creating virtual environment at: .venv
+Resolved 75 packages in 0.80ms
+   Building application @ file://<worktree>/packages/application
+   Building coh-api @ file://<worktree>/apps/api
+   Building coh-archive @ file://<worktree>/packages/archive
+   Building execution-core @ file://<worktree>/packages/execution-core
+   Building persistence @ file://<worktree>/packages/persistence
+   Building mcp-adapter @ file://<worktree>/packages/mcp_adapter
+   Building prose @ file://<worktree>/packages/prose
+      Built persistence @ file://<worktree>/packages/persistence
+      Built application @ file://<worktree>/packages/application
+      Built coh-archive @ file://<worktree>/packages/archive
+      Built mcp-adapter @ file://<worktree>/packages/mcp_adapter
+      Built execution-core @ file://<worktree>/packages/execution-core
+      Built prose @ file://<worktree>/packages/prose
+      Built coh-api @ file://<worktree>/apps/api
+Prepared 7 packages in 221ms
+Installed 71 packages in 28ms
+```
+
+The 71 `+` lines are the B0 list (with `<worktree>` in place of `<scratch>/dep-adr/copy`) plus `+ deptry==0.25.1` and `+ requirements-parser==0.13.1`.
+
+`uv run --no-sync --directory <worktree> deptry --version` (the value the lead's version gate checks)
+
+```text
+deptry 0.25.1
+```
+
+`uv run --no-sync --directory <worktree> deptry --no-ansi <m> --config <m>/pyproject.toml` for each member (criterion 4):
+
+| Member | Exit | Output |
+|---|---|---|
+| packages/archive | 0 | `Scanning 5 files...` / `Success! No dependency issues found.` |
+| packages/execution-core | 0 | `Scanning 24 files...` / `Success! No dependency issues found.` |
+| packages/persistence | 0 | `Scanning 11 files...` / `Success! No dependency issues found.` |
+| packages/prose | 0 | `Scanning 3 files...` / `Success! No dependency issues found.` |
+| packages/mcp_adapter | 0 | `Scanning 6 files...` / `Success! No dependency issues found.` |
+| packages/application | 0 | `Scanning 3 files...` / `Success! No dependency issues found.` |
+| apps/api | 0 | `Scanning 12 files...` / `Success! No dependency issues found.` |
+
+Each run printed exactly those two lines with a blank line between them.
+
+`uv export --directory <worktree> --locked --all-packages --no-emit-workspace --format requirements.txt --no-header --quiet -o <scratch>/dep-adr/head-hashed.txt` (exit 0, no output), then `uvx --directory <scratch>/dep-adr/tools --no-config --python 3.13 pip-audit==2.10.1 --strict --disable-pip -r <scratch>/dep-adr/head-hashed.txt` (exit 0; criterion 4)
+
+```text
+No known vulnerabilities found
+```
+
+`uv export --directory <worktree> --locked --all-packages --no-emit-workspace --format requirements.txt --no-hashes --no-header --quiet -o <scratch>/dep-adr/head-nohash.txt` (exit 0, no output), then `grep -c -E '^[A-Za-z0-9._-]+=='`, `grep -c -E '^(fastapi|sqlalchemy|mcp|pyyaml)=='` and `grep -c -E '^-e '` on it (criterion 3)
+
+```text
+67
+4
+0
+```
+
+Tests (B1-B3 counts):
+
+`uv run --no-sync --directory <worktree> pytest tests/packages/application -q`
+
+```text
+...........................                                              [100%]
+27 passed in 0.87s
+```
+
+`uv run --no-sync --directory <worktree> pytest tests/apps/api -q`
+
+```text
+.........                                                                [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.15/site-packages/starlette/testclient.py:53
+  <worktree>/.venv/lib/python3.15/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+tests/apps/api/test_api_integration.py::TestI02ReadinessGate::test_confirm_blocked_when_spec_is_blocked
+  <worktree>/.venv/lib/python3.15/site-packages/anyio/_backends/_asyncio.py:1100: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    result = context.run(func, *args)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+9 passed, 2 warnings in 0.42s
+```
+
+`uv run --no-sync --directory <worktree> pytest tests/packages/mcp_adapter -q`
+
+```text
+.......................................                                  [100%]
+39 passed in 0.85s
+```
+
+`uv run --no-sync --directory <worktree> ruff check .` and `uv run --no-sync --directory <worktree> ruff format --check .`
+
+```text
+All checks passed!
+193 files already formatted
+```
+
+### Step E: bite proofs (criterion 5)
+
+`cp -r <worktree>/packages/prose <scratch>/dep-adr/bite-prose`, then the Edit tool added `    "sqlalchemy>=2.0.0",` after `    "pydantic>=2.9.0",` in `<scratch>/dep-adr/bite-prose/pyproject.toml`. `uv run --no-sync --directory <worktree> deptry --no-ansi <scratch>/dep-adr/bite-prose --config <scratch>/dep-adr/bite-prose/pyproject.toml` (exit 1)
+
+```text
+Scanning 3 files...
+
+<scratch>/dep-adr/bite-prose/pyproject.toml: DEP002 'sqlalchemy' defined as a dependency but not used in the codebase
+Found 1 dependency issue.
+
+For more information, see the documentation: https://deptry.com/
+```
+
+Task 1's D6 again: `uvx --directory <scratch>/dep-adr/tools --no-config --python 3.13 pip-audit==2.10.1 --strict --disable-pip --no-deps -r <scratch>/dep-adr/probe/vulnerable.txt` (exit 1)
+
+```text
+WARNING:pip_audit._cli:--no-deps is supported, but users are encouraged to fully hash their pinned dependencies
+WARNING:pip_audit._cli:Consider using a tool like `pip-compile`: https://pip-tools.readthedocs.io/en/latest/#using-hashes
+Found 10 known vulnerabilities in 1 package
+Name     Version ID              Fix Versions
+-------- ------- --------------- ------------
+requests 2.19.1  PYSEC-2018-28   2.20.0
+requests 2.19.1  PYSEC-2018-28   2.20.0
+requests 2.19.1  PYSEC-2023-74   2.31.0
+requests 2.19.1  PYSEC-2023-74   2.31.0
+requests 2.19.1  PYSEC-2026-1873 2.32.0
+requests 2.19.1  PYSEC-2026-1872 2.32.4
+requests 2.19.1  PYSEC-2026-2275 2.33.0
+requests 2.19.1  PYSEC-2026-1873 2.32.0
+requests 2.19.1  PYSEC-2026-1872 2.32.4
+requests 2.19.1  PYSEC-2026-2275 2.33.0
+```
+
+`git -C <worktree> status --porcelain --untracked-files=all` after both bites printed nothing.
+
+### Task 4 gates
+
+`git -C <worktree> diff origin/main...HEAD -- uv.lock | grep -E '^\+name = '`
+
+```text
++name = "deptry"
++name = "requirements-parser"
+```
+
+The same diff piped to `grep -c -E '^-[^-]'`, then to `grep -c -E '^-version = '`
+
+```text
+4
+0
+```
+
+`grep -n -F '"deptry>=' <worktree>/pyproject.toml`
+
+```text
+10:    "deptry>=0.25.1",
+```
+
+`grep -c -F '[tool.deptry]'` on the 7 member files: each prints 1 (output order as printed: prose, execution-core, persistence, mcp_adapter, application, archive, apps/api).
+
+`grep -n -E '^DEP00[0-9] = '` on the 7 member files
+
+```text
+<worktree>/packages/mcp_adapter/pyproject.toml:46:DEP003 = ["sqlalchemy"]
+<worktree>/apps/api/pyproject.toml:30:DEP002 = ["uvicorn"]
+```
+
+`grep -n -E '^(ignore|exclude|extend_exclude|requirements_files|requirements_files_dev|pep621_dev_dependency_groups|optional_dependencies_dev_groups|non_dev_dependency_groups|experimental_namespace_package) *='` on the 7 member files: no output, exit 1 (the pass state).
+
+`grep -c -E '^ +"sqlalchemy' <worktree>/packages/mcp_adapter/pyproject.toml`
+
+```text
+0
+```
+
+`grep -n -E '^ +"(coh-archive|sqlalchemy|execution-core)' <worktree>/packages/application/pyproject.toml <worktree>/apps/api/pyproject.toml`
+
+```text
+<worktree>/packages/application/pyproject.toml:7:    "execution-core",
+<worktree>/packages/application/pyproject.toml:9:    "sqlalchemy>=2.0.0",
+```
+
+`git -C <worktree> diff --numstat origin/main...HEAD -- pyproject.toml packages apps` (equals the planner numstat)
+
+```text
+11	1	apps/api/pyproject.toml
+4	2	packages/application/pyproject.toml
+3	0	packages/archive/pyproject.toml
+3	0	packages/execution-core/pyproject.toml
+15	0	packages/mcp_adapter/pyproject.toml
+3	0	packages/persistence/pyproject.toml
+3	0	packages/prose/pyproject.toml
+1	0	pyproject.toml
+```
+
+D-07 order, `git -C <worktree> log --reverse --format="%h %ae %s" --name-only origin/main..HEAD` (author addresses: lead commits `lead-seat@coh-fleet.invalid`, builder commits the repository's default noreply address, shown here as `<builder>`)
+
+```text
+6fa1cee lead-seat@coh-fleet.invalid docs(03): plan for the deptry and pip-audit jobs
+.planning/phases/03-dependency-audit-job/03-01-PLAN.md
+02105fb lead-seat@coh-fleet.invalid ci: deptry and pip-audit jobs (SUPP-01 checks)
+.github/workflows/ci.yml
+2c6a1e4 <builder> docs(adr): propose ADR-0003, deptry and pip-audit in CI (SUPP-01)
+.planning/phases/03-dependency-audit-job/03-EVIDENCE.md
+docs/adr/0003-dependency-audit-deptry-pip-audit.md
+docs/adr/README.md
+d92220a lead-seat@coh-fleet.invalid docs(decision-log): D18, PSF-2.0 in pip-audit's CI-only closure
+README.md
+docs/decision-log.md
+d3e8da0 <builder> docs(adr): accept ADR-0003 (owner decision qitem-20261022162351-9cad306d)
+docs/adr/0003-dependency-audit-deptry-pip-audit.md
+docs/adr/README.md
+73a48ba <builder> build(deps): add deptry 0.25.1 to the root dev group (ADR-0003, SUPP-01)
+pyproject.toml
+uv.lock
+67d62d8 <builder> chore(deps): deptry config per member and the D-04 split (ADR-0003, SUPP-01)
+apps/api/pyproject.toml
+packages/application/pyproject.toml
+packages/archive/pyproject.toml
+packages/execution-core/pyproject.toml
+packages/mcp_adapter/pyproject.toml
+packages/persistence/pyproject.toml
+packages/prose/pyproject.toml
+uv.lock
+```
+
+No `pyproject.toml` or `uv.lock` path appears before the accept commit d3e8da0.
