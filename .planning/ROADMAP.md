@@ -29,7 +29,7 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
   1. `uv run pyright packages/archive` exits 0 and reports 0 errors.
   2. `uv run pytest tests/packages/archive` passes with the same test count as `main`.
   3. The diff adds no `# type: ignore`, `# pyright: ignore` or `# noqa`.
-**Plans**: TBD
+**Plans**: 1 plan
 
 ### Phase 2: Pyright clean execution-core
 **Goal**: `packages/execution-core` has zero pyright errors, and every stored or serialized datetime keeps its current value and form.
