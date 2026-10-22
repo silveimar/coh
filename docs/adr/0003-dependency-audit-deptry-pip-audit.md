@@ -1,10 +1,10 @@
 # ADR-0003: Check dependencies in CI with deptry and pip-audit
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-22
-- **Deciders:** proposed by the builder seat (chores-q4 Phase 3); owner approval required for Accepted
-- **Slice / PR:** chores-q4 Phase 3, SUPP-01; the draft PR (number added at acceptance)
-- **Decision log:** owner decision needed: defusedxml 0.7.1 (PSF-2.0) and distlib vendored in pip 26.2.2 (PSF-2.0), both in pip-audit's CI-only closure (Q3); certifi 2026.10.19 (MPL-2.0) in pip-audit's closure and vendored in pip, within D16's scope (Q4)
+- **Deciders:** proposed by the builder seat (chores-q4 Phase 3); accepted by the owner (Q1 and Q2 accept, Q3 approve, Q4 confirm, Q5 accept), queue row qitem-20261022162351-9cad306d
+- **Slice / PR:** chores-q4 Phase 3, SUPP-01; PR #39
+- **Decision log:** D18 (defusedxml and pip's vendored distlib under PSF-2.0, CI-only; Q3). D16 covers certifi in pip-audit's closure and vendored in pip (Q4; no new entry).
 
 ## Question
 
@@ -86,10 +86,10 @@ Table 2, pip-audit closure (installed on CPython 3.13.16 by `uvx`; not in `uv.lo
 | pip-audit | 2.10.1 | Apache-2.0 (classifier) | yes | `py3-none-any` |
 | boolean.py | 5.0 | BSD-2-Clause (`License`) | yes | `py3-none-any` |
 | CacheControl | 0.14.4 | Apache-2.0 (`License-Expression`) | yes | `py3-none-any` |
-| certifi | 2026.10.19 | MPL-2.0 (`License` and classifier) | no: owner decision (Q4) | `py3-none-any` |
+| certifi | 2026.10.19 | MPL-2.0 (`License` and classifier) | no: owner confirmed under D16 (Q4) | `py3-none-any` |
 | charset-normalizer | 3.5.2 | MIT (`License`) | yes | `cp313-cp313-manylinux_2_17_x86_64` |
 | cyclonedx-python-lib | 11.12.0 | Apache-2.0 (`License` and classifier) | yes | `py3-none-any` |
-| defusedxml | 0.7.1 | PSF-2.0 (`License: PSFL`, classifier Python Software Foundation License) | no: owner decision (Q3) | `py2-none-any`, `py3-none-any` |
+| defusedxml | 0.7.1 | PSF-2.0 (`License: PSFL`, classifier Python Software Foundation License) | no: owner approved CI-only, D18 (Q3) | `py2-none-any`, `py3-none-any` |
 | filelock | 4.2.4 | MIT (`License-Expression`) | yes | `py3-none-any` |
 | idna | 3.20 | BSD-3-Clause (`License-Expression`) | yes | `py3-none-any` |
 | license-expression | 30.4.4 | Apache-2.0 (`License`) | yes | `py3-none-any` |
@@ -111,7 +111,7 @@ Table 2, pip-audit closure (installed on CPython 3.13.16 by `uvx`; not in `uv.lo
 | tomli | 2.5.0 | MIT (`License-Expression`) | yes | `cp313-cp313-manylinux_2_17_x86_64` |
 | tomli-w | 1.2.0 | MIT (classifier) | yes | `py3-none-any` |
 | urllib3 | 2.8.0 | MIT (`License-Expression`) | yes | `py3-none-any` |
-| pip's vendored components outside the list | in pip 26.2.2 | certifi: MPL-2.0 (`_vendor/certifi/LICENSE` line 15); distlib: PSF-2.0 (`_vendor/distlib/LICENSE.txt` line 93) | no: owner decision (Q3, Q4) | (inside the pip wheel) |
+| pip's vendored components outside the list | in pip 26.2.2 | certifi: MPL-2.0 (`_vendor/certifi/LICENSE` line 15); distlib: PSF-2.0 (`_vendor/distlib/LICENSE.txt` line 93) | no: distlib owner approved CI-only, D18 (Q3); certifi under D16 (Q4) | (inside the pip wheel) |
 
 The other 16 components vendored in pip carry MIT, Apache-2.0, BSD or ISC license text (V7b; resolvelib's file is the ISC grant without the word "ISC", packaging's points to its Apache-2.0 and BSD files).
 
@@ -141,6 +141,8 @@ Measured in D1-D5. pip-audit 2.10.1 evaluates environment markers and drops a li
 
 No package installed from an sdist build (V2 and V5 ran with `--no-build`), so there is no sdist question.
 
+**Owner answers (2026-10-22, queue row qitem-20261022162351-9cad306d):** Q1 and Q2 accept. Q3 approve for CI-only use; the lead recorded it as D18, which is not a general PSF-2.0 allowance (typing-extensions stays an open question outside this phase). Q4 confirm: D16 covers certifi here; no new entry. Q5 accept the marker-only gap; reopen if COH supports Windows.
+
 ### Already decided (cited, not asked again)
 
 - pip-audit's calls to the vulnerability service (the default `pypi` service; only public package names and versions leave the runner) are approved by the owner (D-08, answer Q9).
@@ -167,12 +169,12 @@ No package installed from an sdist build (V2 and V5 ran with `--no-build`), so t
 ## Compliance checklist
 
 - [x] Stays inside the layer rules: no source change. The mcp_adapter violation already exists; this ADR records it with an ignore and does not widen it.
-- [x] New dependency: deptry 0.25.1 (MIT) and requirements-parser 0.13.1 (Apache-2.0) enter `uv.lock`; click and packaging are already locked. pip-audit 2.10.1 (Apache-2.0) and its closure run in CI only and are not a project dependency; certifi (MPL-2.0) and defusedxml and pip's vendored distlib (PSF-2.0) in that closure are outside the allowed list and need the owner (Q3, Q4). Maintenance status: both tools resolved as the newest releases on PyPI on 2026-10-22 (V11); release dates and maintainer activity were not checked.
+- [x] New dependency: deptry 0.25.1 (MIT) and requirements-parser 0.13.1 (Apache-2.0) enter `uv.lock`; click and packaging are already locked. pip-audit 2.10.1 (Apache-2.0) and its closure run in CI only and are not a project dependency; certifi (MPL-2.0) and defusedxml and pip's vendored distlib (PSF-2.0) in that closure are outside the allowed list; the owner approved defusedxml and distlib for CI-only use (Q3, D18) and confirmed certifi under D16 (Q4). Maintenance status: both tools resolved as the newest releases on PyPI on 2026-10-22 (V11); release dates and maintainer activity were not checked.
 - [x] Schema change: not applicable.
 - [x] Public API, wire format or archive format: not applicable.
 - [x] No new infrastructure.
 - [x] Tests: no behavior change; the application, api and mcp_adapter tests are re-run after the dependency changes (tracer: 75 passed, equal to the baseline).
-- [x] Decision-log entry: no execution-semantics change. A PSF-2.0 approval, if given, is its own entry written by the lead (Q3).
+- [x] Decision-log entry: no execution-semantics change. The PSF-2.0 approval is its own entry, D18, written by the lead (Q3).
 
 ## Reopen when
 
@@ -180,7 +182,7 @@ No package installed from an sdist build (V2 and V5 ran with `--no-build`), so t
 - A closure license changes, or a package outside the allowed list enters either closure.
 - pip-audit's default service changes or needs credentials.
 - A pip-audit release counts marker-excluded lines as skipped (D-06).
-- COH supports win32 or emscripten.
+- COH supports win32 or emscripten (the owner's Q5 answer: reopen if COH supports Windows).
 - The mcp_adapter layer violation is fixed (remove the DEP003 ignore).
 - A workspace member is added or renamed.
 - The owner moves the audit to `uv audit`.
@@ -190,7 +192,7 @@ No package installed from an sdist build (V2 and V5 ran with `--no-build`), so t
 - `.planning/phases/03-dependency-audit-job/03-CONTEXT.md`
 - `.planning/ROADMAP.md` (Phase 3), `.planning/REQUIREMENTS.md` (SUPP-01)
 - `docs/adr/0001-uv-dev-dependency-group.md`, `docs/adr/0002-mypy-strict-for-coh-prose.md`
-- `docs/decision-log.md` D12, D13, D16 and D17
+- `docs/decision-log.md` D12, D13, D16, D17 and D18
 - `CONTRIBUTING.md`, `FLEET-POLICY.md` (Security and CI/CD rows)
 - `.planning/codebase/CONCERNS.md`
 - `https://pypi.org/project/deptry/`, `https://pypi.org/project/pip-audit/`, `https://pypi.org/project/requirements-parser/`, `https://deptry.com/`
