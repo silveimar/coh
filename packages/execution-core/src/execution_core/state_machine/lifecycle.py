@@ -1,5 +1,6 @@
 """State machine implementing the 7-state lifecycle and transitions T1-T11."""
 
+from typing import Any
 from uuid import UUID
 
 from ..domain.checkpoint import Checkpoint, RecoverySummary
@@ -68,7 +69,7 @@ class StateMachine:
 
     def analyze_findings_with_tool(
         self, session: ExecutionSession, tool_name: str, findings: str
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Analyze inspection findings using external tool (requires adapter).
 
         This capability is not implemented in v0.1 (I-14).

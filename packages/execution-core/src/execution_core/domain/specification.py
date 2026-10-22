@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
+from .clock import utc_now_naive
 from .enums import AssumptionClass, Clarity, Readiness
 
 
@@ -18,7 +19,7 @@ class Assumption(BaseModel):
     requires_confirmation: bool = False
     resolved: bool = False
     resolution_notes: str | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now_naive)
 
 
 class Unknown(BaseModel):
@@ -30,7 +31,7 @@ class Unknown(BaseModel):
     discoverable_via_inspection: bool = True
     resolved: bool = False
     resolution_value: str | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now_naive)
 
 
 class DoneWhenCriterion(BaseModel):
@@ -39,7 +40,7 @@ class DoneWhenCriterion(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     text: str
     measurable: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now_naive)
 
 
 class Specification(BaseModel):
@@ -57,8 +58,8 @@ class Specification(BaseModel):
     unknowns: list[Unknown] = Field(default_factory=list)
     clarity: Clarity = Clarity.LOW
     readiness: Readiness = Readiness.BLOCKED
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now_naive)
+    updated_at: datetime = Field(default_factory=utc_now_naive)
     confirmed_at: datetime | None = None
 
     def compute_clarity(self) -> Clarity:

@@ -1,6 +1,7 @@
 """Archive policy enforcing I-04 (append-only) and I-12 (degrade-and-continue)."""
 
 from datetime import datetime
+from typing import Any
 
 
 class ArchivePolicy:
@@ -66,7 +67,7 @@ class ProposalPolicy:
 
     @staticmethod
     def validate_proposal_before_mutation(
-        proposal_dict: dict, schema_valid: bool, policy_valid: bool
+        proposal_dict: dict[str, Any], schema_valid: bool, policy_valid: bool
     ) -> tuple[bool, list[str]]:
         """Enforce I-06: proposals pass schema + policy before state change."""
         violations = []

@@ -122,7 +122,7 @@ class DriftPolicy:
 
         Returns (is_detour, recommendation, alternatives).
         """
-        is_drift_detected, reason = DriftPolicy.is_drift(
+        is_drift_detected, _ = DriftPolicy.is_drift(
             session_intent, current_action, objective
         )
 

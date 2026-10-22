@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
+from .clock import utc_now_naive
 from .enums import (
     ActivationFriction,
     CompletionState,
@@ -38,8 +39,8 @@ class Task(BaseModel):
     foreground_position: ForegroundPosition = ForegroundPosition.BACKGROUND
     dependencies: list[TaskDependency] = Field(default_factory=list)
     blocked_reason: str | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now_naive)
+    updated_at: datetime = Field(default_factory=utc_now_naive)
     started_at: datetime | None = None
     completed_at: datetime | None = None
 

@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
+from .clock import utc_now_naive
 from .enums import ParkingItemStatus, RelevanceLevel
 
 
@@ -21,7 +22,7 @@ class ParkingItem(BaseModel):
     status: ParkingItemStatus = ParkingItemStatus.PARKED
     revisit_trigger: str | None = None
     auto_parked: bool = False
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now_naive)
     promoted_at: datetime | None = None
     promoted_to_task_id: UUID | None = None
     dismissed_at: datetime | None = None
