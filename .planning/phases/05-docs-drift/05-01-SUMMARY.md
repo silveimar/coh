@@ -66,6 +66,23 @@ Archive Next Action 1 is marked done for the user/agent half: `archive_user_inpu
 
 F-1 to F-9 and the two D-10 defects are listed with file:line evidence in 05-VERIFICATION.md, "Follow-ups". F-9: once the lead appends the certifi entry (D-06), `README.md` needs `D1-D16`.
 
+## Final gates (run at 2cb602f, after the verification commit)
+
+| Command | Output |
+|---|---|
+| `git -C <worktree> diff --name-only origin/main...HEAD` | the 4 files under `.planning/phases/05-docs-drift/`, `README.md`, `apps/api/README.md`, `docs/coding-rules.md`, and the application, archive, execution-core, persistence and prose READMEs. Nothing else |
+| `git -C <worktree> ls-files 'packages/*/README.md' 'apps/*/README.md' \| wc -l` | `7` |
+| `grep -c -E '^## D[0-9]+ ' <worktree>/docs/decision-log.md` | `15` |
+| `git -C <worktree> status --porcelain --untracked-files=all` | (no output) |
+| `grep -c -E '/(home\|tmp)/'` on 05-EVIDENCE.md, 05-VERIFICATION.md and 05-01-SUMMARY.md | `0`, `0`, `0` |
+| `git -C <worktree> diff origin/main...HEAD \| grep -c -E '/(home\|tmp)/'` | `0` |
+| decider name from the decision-log Decided lines, in `git -C <worktree> diff -U0 origin/main...HEAD` (`grep -c -i -w`) | 0 matches |
+| `git -C <worktree> diff origin/main...HEAD \| grep -c -P '\x{200B}'` | `0` (no zero-width character added or removed) |
+| `grep -c -P '\x{200B}' <worktree>/packages/archive/README.md` | `4` |
+| 05-VERIFICATION.md: inventory headings with `(0 missing)` / required sections / pasted `valid=False violations=` | `9` / `5` / `1` |
+
+This summary edit is the only change after 2cb602f.
+
 ## Not covered
 
 GitHub rendering was not viewed. Usage snippets other than the prose one were not run. Alembic against a database that `create_all` already populated was not exercised. CI on the PR head is UNKNOWN until it runs.
