@@ -19,12 +19,16 @@ This package provides persistence for the `execution-core` domain models using S
 ## Setup
 
 ```bash
-# Install package (from workspace root)
-uv pip install -e packages/persistence
+# Install every workspace package and the dev tools (from the repository root)
+uv sync --all-packages
 
-# Initialize database schema
-alembic upgrade head
+# Apply the Alembic migrations (from packages/persistence/, where alembic.ini and alembic/ live)
+cd packages/persistence
+mkdir -p .coh
+uv run alembic upgrade head
 ```
+
+`alembic.ini` sets `script_location = alembic`, which resolves against the current directory, so the command fails from the repository root. `alembic/env.py` writes to `sqlite:///.coh/coh.db` relative to the current directory and does not create `.coh/`; without it the run fails with "unable to open database file". The result is `packages/persistence/.coh/coh.db`. The MCP adapter and the API do not open that file: each uses `.coh/coh.db` under its own project root or working directory (`handlers.py:46-49`, `composition.py:15-19`).
 
 ## Usage
 
@@ -126,7 +130,7 @@ The crash/restart test (`test_crash_restart.py`) proves that:
 
 Phase 1 (this package) provides persistence only. Future phases:
 
-1. **Archive Writer**: Append-only `.coh/archive/` for full interaction history
-2. **FastAPI Integration**: REST endpoints exposing repositories
-3. **Huey Task Queue**: Async processing for long-running operations
-4. **MCP Adapter**: Claude Code server for agent interactions
+1. ✅ ~~**Archive Writer**: Append-only `.coh/archive/` for full interaction history~~ — Complete: `packages/archive`
+2. ✅ ~~**FastAPI Integration**: REST endpoints exposing repositories~~ — Complete: `apps/api`; its routes call application services, which reach these repositories through the unit of work
+3. **Huey Task Queue**: Async processing for long-running operations (planned; Decision D2)
+4. ✅ ~~**MCP Adapter**: Claude Code server for agent interactions~~ — Complete: `packages/mcp_adapter`

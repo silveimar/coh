@@ -97,11 +97,11 @@ Deterministic policies in execution-core compute readiness/foreground; applicati
 ## Testing
 
 ```bash
-# Run application tests
-pytest tests/packages/application -v
+# Run application tests (from the repository root)
+uv run pytest tests/packages/application -v
 
 # With coverage
-pytest tests/packages/application --cov=packages/application/src
+uv run pytest tests/packages/application --cov=packages/application/src
 ```
 
 Tests cover:
@@ -124,11 +124,11 @@ Tests cover:
 
 ## Next Actions
 
-1. Add FastAPI routes wrapping these services (apps/api or separate HTTP layer)
+1. ✅ ~~Add FastAPI routes wrapping these services (apps/api or separate HTTP layer)~~ — Complete: `apps/api/src/coh_api/api/routes/spec_gate.py` and `foreground.py`
 2. Wire TaskProgressRecord persistence to a repository
 3. Emit archive events from service methods (or keep it in adapter layer)
 4. Add service-level metrics (readiness check frequency, foreground recalculation triggers)
-5. Implement remaining MCP tools using these services (`plan_work`, `execute_task`, `verify_deliverable`)
+5. ✅ ~~Implement remaining MCP tools using these services (`plan_work`, `execute_task`, `verify_deliverable`)~~ — Complete: registered in `packages/mcp_adapter/src/coh_mcp/server.py`
 
 ## Dependencies
 

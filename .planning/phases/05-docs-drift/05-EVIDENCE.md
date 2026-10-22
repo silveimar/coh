@@ -388,3 +388,161 @@ ls: cannot access '<worktree>/pnpm-lock.yaml': No such file or directory
 <worktree>/tests/evals
 <worktree>/uv.lock
 ```
+
+Committed as d9a4a1c.
+
+## Task 3
+
+### Step A, alembic runs
+
+1. `ls -a <worktree>/packages/persistence` (precondition: no `.coh`): output identical to PC8 (`.`, `..`, `README.md`, `alembic`, `alembic.ini`, `pyproject.toml`, `src`).
+
+2. R1 `uv run --no-sync --directory <worktree> alembic upgrade head` (exit 255)
+
+```text
+FAILED: No 'script_location' key found in configuration.
+```
+
+3. R2 `uv run --no-sync --directory <worktree>/packages/persistence alembic upgrade head` (exit 1). The traceback is long, with two chained exceptions. The frames inside site-packages are elided here and marked `[...]`; the env.py frames and the final lines are verbatim.
+
+```text
+Traceback (most recent call last):
+  File "<worktree>/.venv/lib/python3.15/site-packages/sqlalchemy/engine/base.py", line 144, in __init__
+    self._dbapi_connection = engine.raw_connection()
+[...]
+sqlite3.OperationalError: unable to open database file
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<worktree>/.venv/bin/alembic", line 10, in <module>
+    sys.exit(main())
+[...]
+  File "<worktree>/packages/persistence/alembic/env.py", line 53, in <module>
+    run_migrations_online()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "<worktree>/packages/persistence/alembic/env.py", line 43, in run_migrations_online
+    with connectable.connect() as connection:
+         ~~~~~~~~~~~~~~~~~~~^^
+[...]
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unable to open database file
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+```
+
+4. `ls -a <worktree>/packages/persistence` after R2: unchanged, no `.coh` entry.
+
+```text
+.
+..
+README.md
+alembic
+alembic.ini
+pyproject.toml
+src
+```
+
+5. `git -C <worktree> status --porcelain --untracked-files=all` after R2
+
+```text
+(no output)
+```
+
+6. `mkdir -p <scratch>/alembic-run` (no output)
+7. `cp -r <worktree>/packages/persistence <scratch>/alembic-run/` (no output)
+8. `mkdir <scratch>/alembic-run/persistence/.coh` (no output)
+
+9. R3 `uv run --no-sync --project <worktree> --directory <scratch>/alembic-run/persistence alembic upgrade head` (exit 0)
+
+```text
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 001_initial_schema, Initial COH persistence schema
+```
+
+R3-T `uv run --no-sync --project <worktree> python -c "import sqlite3; c = sqlite3.connect('<scratch>/alembic-run/persistence/.coh/coh.db'); print(sorted(r[0] for r in c.execute(\"select name from sqlite_master where type='table'\"))); print(c.execute('select version_num from alembic_version').fetchall())"`
+
+```text
+['alembic_version', 'checkpoints', 'decisions', 'evidence', 'execution_sessions', 'parking_items', 'specifications', 'tasks']
+[('001_initial_schema',)]
+```
+
+Source lines behind the Setup prose: `alembic/env.py:35` sets `configuration["sqlalchemy.url"] = "sqlite:///.coh/coh.db"`; `handlers.py:46-49` opens `project_root / ".coh" / "coh.db"`; `composition.py:15-19` defaults to `Path.cwd() / ".coh"` / `coh.db`.
+
+### Step B, evidence for the D-08 markers
+
+`grep -n -E 'include_router' <worktree>/apps/api/src/coh_api/main.py`
+
+```text
+38:    app.include_router(spec_gate.router, prefix="/api/v1")
+39:    app.include_router(foreground.router, prefix="/api/v1")
+```
+
+`grep -n -i huey` on the root `pyproject.toml` and the seven member `pyproject.toml` files
+
+```text
+(no output)
+```
+
+`grep -n -E 'name="(plan_work|execute_task|verify_deliverable)"' <worktree>/packages/mcp_adapter/src/coh_mcp/server.py`
+
+```text
+233:                name="plan_work",
+277:                name="execute_task",
+291:                name="verify_deliverable",
+```
+
+`git -C <worktree> ls-files -- 'packages/execution-core/src/execution_core/*.py'` (24 files, 5 of them `__init__.py`, so 19 modules)
+
+```text
+packages/execution-core/src/execution_core/__init__.py
+packages/execution-core/src/execution_core/domain/__init__.py
+packages/execution-core/src/execution_core/domain/checkpoint.py
+packages/execution-core/src/execution_core/domain/clock.py
+packages/execution-core/src/execution_core/domain/commands.py
+packages/execution-core/src/execution_core/domain/decision.py
+packages/execution-core/src/execution_core/domain/enums.py
+packages/execution-core/src/execution_core/domain/evidence.py
+packages/execution-core/src/execution_core/domain/foreground.py
+packages/execution-core/src/execution_core/domain/parking_item.py
+packages/execution-core/src/execution_core/domain/session.py
+packages/execution-core/src/execution_core/domain/specification.py
+packages/execution-core/src/execution_core/domain/task.py
+packages/execution-core/src/execution_core/events/__init__.py
+packages/execution-core/src/execution_core/events/domain_events.py
+packages/execution-core/src/execution_core/policies/__init__.py
+packages/execution-core/src/execution_core/policies/completion_policy.py
+packages/execution-core/src/execution_core/policies/foreground_policy.py
+packages/execution-core/src/execution_core/policies/integrity_policy.py
+packages/execution-core/src/execution_core/policies/parking_policy.py
+packages/execution-core/src/execution_core/policies/permission_policy.py
+packages/execution-core/src/execution_core/policies/readiness_policy.py
+packages/execution-core/src/execution_core/state_machine/__init__.py
+packages/execution-core/src/execution_core/state_machine/lifecycle.py
+```
+
+### Step D, the corrected test command and the gates
+
+`uv run --no-sync --directory <worktree> pytest tests/packages/application -q`
+
+```text
+...........................                                              [100%]
+27 passed in 0.28s
+```
+
+| Command | Output |
+|---|---|
+| `grep -o -E '(├──\|└──) [a-z_]+\.py' <worktree>/packages/execution-core/README.md \| sort -u \| wc -l` | `19` (baseline 14) |
+| `grep -c -F 'uv run pytest tests/packages/application' <worktree>/packages/application/README.md` | `2` (baseline 0) |
+| `grep -c -F 'uv pip install' <worktree>/packages/persistence/README.md` | `0` (baseline 1) |
+| `grep -c -F -e 'uv run alembic upgrade head' -e 'sqlite:///.coh/coh.db' -e 'unable to open database file' <worktree>/packages/persistence/README.md` | `3` |
+| `grep -c -E 'pytest>=8\.3\.0\|ruff>=0\.6\.0' <worktree>/packages/execution-core/README.md` | `0` (baseline 2) |
+| `grep -c -F 'dependency-groups' <worktree>/packages/execution-core/README.md` | `1` (baseline 0) |
+| `grep -c -F '✅ ~~'` on the execution-core, persistence and application READMEs | `4`, `3`, `2` |
+
+`grep -n -F 'Huey' <worktree>/packages/execution-core/README.md <worktree>/packages/persistence/README.md`. The Next Actions lines say planned. Execution-core line 103 is the old line 98, unchanged and shifted by the five added tree lines.
+
+```text
+<worktree>/packages/persistence/README.md:135:3. **Huey Task Queue**: Async processing for long-running operations (planned; Decision D2)
+<worktree>/packages/execution-core/README.md:103:The package imports no FastAPI, SQLAlchemy, Huey, or MCP. Those live in the application and adapter layers.
+<worktree>/packages/execution-core/README.md:126:- Background jobs via Huey (planned; Decision D2)
+```
