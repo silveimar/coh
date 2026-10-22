@@ -1552,3 +1552,82 @@ opentelemetry-api 1.44.0  CVE-2026-114603 1.45.1
 The same job passed on 43a4a0d about 12 minutes earlier with `No known vulnerabilities found`, and `uv.lock` did not change between the two heads. So this is a new advisory against an already-locked package. That is stop rule S4: no package is bumped in this phase, and a fix slice lands first (owner answer f1). The lead took the fix choice to the owner (16:47Z). There was no local rerun: the lead ruled the CI run is the evidence. Criterion 6 is FAIL on 573d2b8 until the fix lands.
 
 The fix landed on main as #40 / 3c8b0ec (opentelemetry-api 1.45.1, `uv.lock` only). Main CI on 3c8b0ec is green (run 39839523168). This branch merges main next.
+
+## Merge of main after S4 (row qitem-20261022192358-c0010851f3d11088)
+
+The admin review on 573d2b8 (18:30Z) requested changes: bring main in, re-lock, and get pip-audit and deptry green on the new head. Method: merge, not rebase (a rebase of a pushed branch would need a force push, which is Never).
+
+`git -C <worktree> fetch origin`, then `git -C <worktree> merge --no-ff origin/main` (exit 0)
+
+```text
+Auto-merging uv.lock
+Merge made by the 'ort' strategy.
+ uv.lock | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+```
+
+Deviation: the row expected a conflict in `uv.lock`, with steps to take main's file and re-lock. There was no conflict. Git merged the two disjoint hunks (this branch's additions and main's opentelemetry-api entry) and made merge commit 2e73e3b itself, so `checkout --theirs` and the separate `commit --no-edit` did not apply. Nothing was merged by hand. The checks below show the merged lock is what `uv lock` produces.
+
+`uv lock --directory <worktree> --check` (exit 0)
+
+```text
+Resolved 75 packages in 0.84ms
+```
+
+`uv lock --directory <worktree>` (exit 0), then `git -C <worktree> status --short` printed nothing: the re-lock changed no byte.
+
+```text
+Resolved 75 packages in 0.85ms
+```
+
+`git -C <worktree> diff 573d2b8 HEAD -- uv.lock`: only the opentelemetry-api entry changes, `version` 1.44.0 to 1.45.1 plus its sdist and wheel URLs and hashes (the #40 change).
+
+`git -C <worktree> diff --stat origin/main -- uv.lock` and `git -C <worktree> diff --stat 2215cd8 573d2b8 -- uv.lock` print the same line:
+
+```text
+ uv.lock | 42 ++++++++++++++++++++++++++++++++++++++----
+```
+
+The diff against main holds only this branch's changes: application drops `coh-archive` and adds `sqlalchemy>=2.0.0`; apps/api drops `execution-core`; the root dev group adds `deptry>=0.25.1`; new package entries `deptry` 0.25.1 and `requirements-parser` 0.13.1. opentelemetry-api is not in that diff, so it is main's 1.45.1.
+
+`uv sync --directory <worktree> --all-packages --locked` (exit 0)
+
+```text
+Resolved 75 packages in 0.80ms
+Uninstalled 1 package in 0.68ms
+Installed 1 package in 1ms
+ - opentelemetry-api==1.44.0
+ + opentelemetry-api==1.45.1
+```
+
+### Local checks on 2e73e3b
+
+Each command is `uv run --directory <worktree> ...`.
+
+| Check | Result |
+|---|---|
+| `ruff check .` | `All checks passed!` |
+| `ruff format --check .` | `195 files already formatted` |
+| `pytest tests/packages/execution-core -q` | `199 passed` |
+| `pytest tests/packages/persistence -q` | `9 passed` |
+| `pytest tests/packages/archive -q` | `33 passed` |
+| `pytest tests/packages/prose -q` | `36 passed` |
+| `pytest tests/packages/mcp_adapter -q` | `39 passed` |
+| `pytest tests/packages/application -q` | `27 passed` |
+| `pytest tests/apps/api -q` | `9 passed, 2 warnings` |
+| `pytest tests/evals -q --tb=short` | `18 passed, 5 skipped, 1 xfailed` |
+| `pytest tests/guard -q` | `90 passed` |
+
+`uv run --no-sync --directory <worktree> deptry --version`: `deptry 0.25.1`. Then `uv run --no-sync --directory <worktree> deptry --no-ansi <m> --config <m>/pyproject.toml` for each member:
+
+| Member | Exit | Output |
+|---|---|---|
+| packages/archive | 0 | `Scanning 5 files...` / `Success! No dependency issues found.` |
+| packages/execution-core | 0 | `Scanning 24 files...` / `Success! No dependency issues found.` |
+| packages/persistence | 0 | `Scanning 11 files...` / `Success! No dependency issues found.` |
+| packages/prose | 0 | `Scanning 3 files...` / `Success! No dependency issues found.` |
+| packages/mcp_adapter | 0 | `Scanning 6 files...` / `Success! No dependency issues found.` |
+| packages/application | 0 | `Scanning 3 files...` / `Success! No dependency issues found.` |
+| apps/api | 0 | `Scanning 12 files...` / `Success! No dependency issues found.` |
+
+Local pip-audit: not run. The `uvx ... pip-audit==2.10.1` call raised a permission prompt, which the lead declined (lead decision 19:31Z). The CI pip-audit job on the pushed head is the evidence. Until that job reports, the pip-audit result on this head is unknown, not a pass.
