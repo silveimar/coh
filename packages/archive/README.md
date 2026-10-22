@@ -189,8 +189,8 @@ uv run pytest tests/packages/archive --cov=coh_archive --cov-report=term-missing
 
 ## Next Actions
 
-1. **Adapter integration**: MCP server calls `archive_interaction()` on user/agent messages, `archive_tool_event()` on tool lifecycle
-2. **Checkpoint wiring**: Checkpoint service adapts `ArchivePointer` → `ArchiveReference`, calls `mark_degraded()` on write failure
+1. ✅ ~~**Adapter integration**: MCP server calls `archive_interaction()` on user/agent messages~~ — Complete: `ArchiveCheckpointWiring.archive_user_input` and `archive_agent_output` in `packages/mcp_adapter/src/coh_mcp/archive_wiring.py`, called from `handlers.py`. Still open: `archive_tool_event()` on tool lifecycle; `archive_tool_invocation` exists in `archive_wiring.py`, but no handler calls it yet.
+2. ✅ ~~**Checkpoint wiring**: Checkpoint service adapts `ArchivePointer` → `ArchiveReference`, calls `mark_degraded()` on write failure~~ — Complete: `ArchiveCheckpointWiring` in `packages/mcp_adapter/src/coh_mcp/archive_wiring.py`
 3. **Recovery rendering**: Recovery summary reads `checkpoint.archive_references` and can call `service.read_session_archive()` for detail
 4. **Configuration loading**: API layer loads `ArchiveConfig` from project config YAML/TOML
 5. **Telemetry events**: Emit `archive_recorded` (success) and `archive_write_failed` (degraded) per Decision D10

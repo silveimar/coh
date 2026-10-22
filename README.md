@@ -9,10 +9,17 @@ COH (Cognitive Operating Harness) is a local-first execution layer that helps so
 ```
 .
 ├── packages/
-│   └── execution-core/        # Deterministic domain model and lifecycle
+│   ├── execution-core/        # Deterministic domain model and lifecycle
+│   ├── persistence/           # SQLAlchemy + Alembic state store (alembic/ lives here)
+│   ├── archive/               # Append-only Markdown interaction archive
+│   ├── prose/                 # Prose rendering policy (P-01 to P-06)
+│   ├── mcp_adapter/           # MCP adapter (first adapter: Claude Code)
+│   └── application/           # Application services
+├── apps/
+│   └── api/                   # FastAPI HTTP adapter
 ├── docs/                      # Phase 0 documentation
 │   ├── behavioral-contract.md  # State machine, invariants I-01...I-14, T1...T11
-│   ├── decision-log.md        # Durable product decisions D1...D11
+│   ├── decision-log.md        # Durable product decisions D1-D15
 │   ├── coding-rules.md        # Engineering standards
 │   └── feature-specs/         # Feature specifications
 └── tests/                     # All tests: packages/, apps/ and evals/ (behavioral scenarios)
@@ -77,14 +84,20 @@ uv run ruff format --check .
 
 ## Packages
 
-### execution-core
+The workspace has seven members (`pyproject.toml`, `[tool.uv.workspace]`). Each has its own README:
 
-See [packages/execution-core/README.md](packages/execution-core/README.md) for details on the deterministic domain model and lifecycle implementation.
+- [packages/execution-core/README.md](packages/execution-core/README.md): deterministic domain model, lifecycle and policies (import `execution_core`)
+- [packages/persistence/README.md](packages/persistence/README.md): SQLAlchemy + Alembic state store (import `persistence`)
+- [packages/archive/README.md](packages/archive/README.md): append-only Markdown interaction archive (import `coh_archive`)
+- [packages/prose/README.md](packages/prose/README.md): prose rendering policy P-01 to P-06 (import `coh_prose`)
+- [packages/mcp_adapter/README.md](packages/mcp_adapter/README.md): MCP adapter; the first adapter is Claude Code (import `coh_mcp`)
+- [packages/application/README.md](packages/application/README.md): application services (import `coh_application`)
+- [apps/api/README.md](apps/api/README.md): FastAPI HTTP adapter (import `coh_api`)
 
 ## Documentation
 
 - [Behavioral Contract](docs/behavioral-contract.md) - State machine, invariants, transitions
-- [Decision Log](docs/decision-log.md) - Product decisions D1-D11
+- [Decision Log](docs/decision-log.md) - Product decisions D1-D15
 - [Coding Rules](docs/coding-rules.md) - Engineering standards and conventions
 - [Glossary](docs/glossary.md) - Canonical terminology
 

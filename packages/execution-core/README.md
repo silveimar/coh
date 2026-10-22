@@ -17,13 +17,17 @@ The execution-core package is the authoritative source for COH's execution seman
 ```
 src/execution_core/
 ├── domain/           # Aggregates and entities
+│   ├── session.py        # ExecutionSession aggregate root
 │   ├── specification.py   # WHAT/WHY/DELIVERABLE/DONE WHEN
 │   ├── task.py           # Atomic work units with dependencies
 │   ├── evidence.py       # Criterion-linked verification evidence
 │   ├── checkpoint.py     # Recovery records with restart actions
 │   ├── decision.py       # Rationale preservation
 │   ├── parking_item.py   # Secondary actions and discoveries
-│   └── foreground.py     # NOW + NEXT 2 execution surface
+│   ├── foreground.py     # NOW + NEXT 2 execution surface
+│   ├── commands.py       # Command types with idempotency and concurrency control
+│   ├── enums.py          # Shared enums and value types
+│   └── clock.py          # Naive UTC clock for timestamp defaults
 ├── state_machine/   # Lifecycle transitions
 │   └── lifecycle.py      # T1-T11 with TransitionError
 ├── policies/        # Invariant enforcement
@@ -34,6 +38,7 @@ src/execution_core/
 │   ├── permission_policy.py     # I-08: permission matrix
 │   └── integrity_policy.py      # I-04, I-06, I-07, I-12, I-13
 └── events/          # Domain events for audit
+    └── domain_events.py  # Domain event models
 ```
 
 ## Key Invariants
@@ -116,13 +121,13 @@ Commands that mutate sessions carry `expected_version`. Idempotency keys are req
 ## Next Actions
 
 ### Application Layer (not in this package)
-- Persistence via SQLAlchemy repositories
-- HTTP API with FastAPI routes
-- Background jobs via Huey
+- ✅ ~~Persistence via SQLAlchemy repositories~~ — Complete: `packages/persistence`
+- ✅ ~~HTTP API with FastAPI routes~~ — Complete: `apps/api`
+- Background jobs via Huey (planned; Decision D2)
 
 ### Adapter Layer (not in this package)
-- MCP server implementing adapter contract
-- Archive writer for `.coh/archive/`
+- ✅ ~~MCP server implementing adapter contract~~ — Complete: `packages/mcp_adapter`
+- ✅ ~~Archive writer for `.coh/archive/`~~ — Complete: `packages/archive`
 
 ### Phase 1+
 - Visual Focus/Recovery UI
@@ -134,10 +139,7 @@ Commands that mutate sessions carry `expected_version`. Idempotency keys are req
 - `pydantic>=2.9.0` - domain model validation
 
 ### Dev Dependencies
-- `pytest>=8.3.0` - testing
-- `hypothesis>=6.112.0` - property-based testing
-- `ruff>=0.6.0` - linting and formatting
-- `pytest-cov>=5.0.0` - coverage reporting
+Dev tools are declared once, in the root `pyproject.toml` `[dependency-groups] dev` group (ADR 0001, `docs/adr/0001-uv-dev-dependency-group.md`): pytest, pytest-asyncio, pytest-cov, hypothesis, ruff, pyright and httpx. `uv sync --all-packages` installs them.
 
 ## Contributing
 
