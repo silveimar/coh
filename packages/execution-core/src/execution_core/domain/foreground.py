@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from .clock import utc_now_naive
 from .task import Task
 
 
@@ -18,7 +19,7 @@ class Foreground(BaseModel):
     next_2_task: Task | None = None
     parked_count: int = 0
     background_count: int = 0
-    calculated_at: datetime = Field(default_factory=datetime.utcnow)
+    calculated_at: datetime = Field(default_factory=utc_now_naive)
     revision: int = 1
 
     def validate_invariant_i01(self) -> tuple[bool, list[str]]:

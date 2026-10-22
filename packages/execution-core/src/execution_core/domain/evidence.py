@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
+from .clock import utc_now_naive
 from .enums import EvidenceAuthority, EvidenceResult
 
 
@@ -30,7 +31,7 @@ class Evidence(BaseModel):
     source: str
     archive_reference: ArchiveReference | None = None
     tool_reference: str | None = None
-    recorded_at: datetime = Field(default_factory=datetime.utcnow)
+    recorded_at: datetime = Field(default_factory=utc_now_naive)
     user_acceptance_rationale: str | None = None
     stale: bool = False
 

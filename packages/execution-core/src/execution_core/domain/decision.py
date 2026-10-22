@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
+from .clock import utc_now_naive
 from .enums import DecisionLifecycle
 
 
@@ -26,7 +27,7 @@ class Decision(BaseModel):
     evidence_refs: list[UUID] = Field(default_factory=list)
     material: bool = True
     lifecycle: DecisionLifecycle = DecisionLifecycle.ACTIVE
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now_naive)
     superseded_at: datetime | None = None
     superseded_by: UUID | None = None
     reopened_at: datetime | None = None
