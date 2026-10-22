@@ -26,7 +26,7 @@ Out of scope: the existing aware `datetime.now(UTC)` sites (mutators and aware d
 - **D-05:** `policies/integrity_policy.py:69` `proposal_dict: dict` and `state_machine/lifecycle.py:71` `-> dict` become `dict[str, Any]`, matching `events/domain_events.py:20`. No `NoReturn`: that would change a declared public signature.
 
 ### Tests and proof
-- **D-06:** No test file changes. `grep -rn utcnow tests` is empty and no test asserts timestamp form. The naive-UTC result is proven in the evidence file by running the real constructors (see criterion 4), not by a new test.
+- **D-06:** The lead's Phase 2 checks commit adds one test under `tests/packages/execution-core` that constructs each of the 10 models in criterion 4 with defaults and asserts `tzinfo is None` and an offset-free `isoformat()` on `created_at`, and on `updated_at` where the model has one. The builder changes no test file. Reason: the test guards the stored-format invariant permanently; the evidence run proves it once only (owner answer Q7 = yes, 2026-10-22). The evidence file still carries the constructor run (criterion 4).
 
 ### Claude's Discretion
 - Exact helper module and function name, within the coding-rules naming rules.
@@ -82,7 +82,6 @@ Baseline at f3743a1: 189 tests pass, 95.60% coverage, about 1687 DeprecationWarn
 <deferred>
 ## Deferred Ideas
 
-- A lasting test pinning `tzinfo is None` on the defaults (lead checks commit) — open question for the owner.
 - Making all domain timestamps consistently aware — needs a decision-log entry; out of scope.
 - `NoReturn` on `analyze_findings_with_tool` — signature change; out of scope.
 </deferred>
