@@ -14,8 +14,8 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
 - [x] **Phase 2: Pyright clean execution-core** - `packages/execution-core` reaches 0 pyright errors (baseline 18) with stored datetimes unchanged
 - [ ] **Phase 3: Dependency audit job** - CI runs deptry and pip-audit on every PR (protected: `.github/workflows/`)
 - [ ] **Phase 4: mypy strict for coh_prose** - `packages/prose/src/coh_prose` passes `mypy --strict` in CI (protected: `.github/workflows/`)
-- [ ] **Phase 5: Docs drift** - README, package READMEs and the `docs/coding-rules.md` structure section match the actual layout
-- [ ] **Phase 6: Coverage floor for prose** - CI enforces a statement coverage floor for `packages/prose` (protected: `.github/workflows/`)
+- [x] **Phase 5: Docs drift** - README, package READMEs and the `docs/coding-rules.md` structure section match the actual layout
+- [x] **Phase 6: Coverage floor for prose** - CI enforces a statement coverage floor for `packages/prose` (protected: `.github/workflows/`)
 
 ## Phase Details
 
@@ -78,7 +78,7 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
   1. Every path named in the structure section of `docs/coding-rules.md`, in `README.md` and in each package README exists, or is labelled "planned".
   2. `README.md` lists all seven packages and the decision range that `docs/decision-log.md` actually holds.
   3. `packages/prose` has a README.
-**Plans**: TBD
+**Plans**: 1 plan
 
 ### Phase 6: Coverage floor for prose
 **Goal**: CI fails when `packages/prose` statement coverage drops below its current level.
@@ -103,8 +103,8 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
 | 2. Pyright clean execution-core | 1/1 | Complete (#34) | 2026-10-22 |
 | 3. Dependency audit job | 0/TBD | Not started | - |
 | 4. mypy strict for coh_prose | 0/TBD | Not started | - |
-| 5. Docs drift | 0/TBD | Not started | - |
-| 6. Coverage floor for prose | 0/1 | In progress | - |
+| 5. Docs drift | 1/1 | Complete (#36) | 2026-10-22 |
+| 6. Coverage floor for prose | 1/1 | Complete (#35) | 2026-10-22 |
 
 ## Backlog
 
@@ -115,4 +115,30 @@ Not part of mission chores-q4. Each item needs its own scope gate before it is p
 **Goal:** Domain timestamps in `packages/execution-core` use one timezone form. Today the defaults are naive UTC (`domain/clock.py` `utc_now_naive()`, Phase 2 D-01), while about 25 mutators set aware `datetime.now(UTC)` values (for example `Task.start()` sets an aware `updated_at` while `created_at` stays naive). Comparing or subtracting a naive and an aware field (`updated_at - created_at`, sorting by timestamp) raises `TypeError: can't compare offset-naive and offset-aware datetimes`.
 **Source:** acting-lead review of PR #34 (2026-10-22).
 **Constraint:** switching to aware values changes stored and wire timestamp strings (`+00:00` in JSON columns), so it needs a decision-log entry first (REQUIREMENTS "Out of Scope"; Phase 2 D-03).
+**Plans:** none yet
+
+### Phase 999.2: Prose coverage floor must not hide later test failures (BACKLOG)
+
+**Goal:** In `.github/workflows/ci.yml` the "Check prose coverage floor" step runs before the mcp_adapter, application, api, eval and checks-guard test steps. When prose coverage dips below the floor, the job stops there, and failures in those later steps stay hidden until the floor is fixed. Move the floor after the last test step, or let the later test steps run with `if: success() || failure()`.
+**Source:** acting-lead review of PR #35 (2026-10-22).
+**Constraint:** protected check set (`.github/workflows/`): the lead writes the change, and editing an existing line is an owner Ask (moving the step edits existing lines).
+**Plans:** none yet
+
+### Phase 999.3: Alembic revisions never run on the app databases (BACKLOG)
+
+**Goal:** The runtime databases and the Alembic revisions agree, and migrations can run on an existing user database. Today the MCP adapter (`packages/mcp_adapter/src/coh_mcp/handlers.py:46-49`) builds its `.coh/coh.db` with `init_db(engine)` (`metadata.create_all`), so its database carries no `alembic_version` stamp. The API (`apps/api/src/coh_api/composition.py:16-21`) opens `.coh/coh.db` in the working directory and creates no tables at all. The documented `alembic upgrade head` (`env.py` hard-codes `sqlite:///.coh/coh.db` relative to the working directory) creates another database under `packages/persistence/.coh/` that neither adapter opens. The first real migration against an existing user database will fail or try to recreate tables, and drift between the models and the revisions goes undetected.
+**Suggested shape:** run `command.upgrade(cfg, "head")` against the app database at startup, or stamp databases that `create_all` built; make the `env.py` URL configurable (Phase 5 F-6); add a CI test that compares `alembic upgrade head` with `metadata.create_all` (for example `alembic check`).
+**Source:** acting-lead review of PR #36 (2026-10-22); Phase 5 follow-up F-6.
+**Constraint:** changes execution or persistence semantics: needs an accepted decision before build; the CI test is a protected-set change (lead).
+**Plans:** none yet
+
+### Phase 999.4: Phase 5 docs follow-ups (BACKLOG)
+
+**Goal:** Close the smaller findings Phase 5 recorded but did not fix (`05-VERIFICATION.md`, "Follow-ups"):
+- F-8: `archive_tool_invocation` (`packages/mcp_adapter/src/coh_mcp/archive_wiring.py`) has no caller in `handlers.py`, so tool events are not archived yet.
+- F-1: the `packages/execution-core/README.md` Usage snippet calls the instance method `transition_to_specify` on the class and omits its required `command` argument, so it raises `TypeError` as written (found by reading, not run).
+- D-10: `apps/api/README.md:57` says the database is "auto-created on first run".
+- D-10: the `packages/mcp_adapter/README.md` architecture diagram shows every handler going through application services, but some handlers write through `SqlAlchemyUnitOfWork` repositories directly (for example `handlers.py:93-98`). AGENTS.md: "Routes and MCP tools call application services, never repositories."
+**Source:** Phase 5 (PR #36) verification, 2026-10-22.
+**Constraint:** F-1 and the `apps/api` line are docs; F-8 and the handler routing are code (the routing fix may overlap 999.3).
 **Plans:** none yet

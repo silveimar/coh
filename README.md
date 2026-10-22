@@ -19,7 +19,7 @@ COH (Cognitive Operating Harness) is a local-first execution layer that helps so
 │   └── api/                   # FastAPI HTTP adapter
 ├── docs/                      # Phase 0 documentation
 │   ├── behavioral-contract.md  # State machine, invariants I-01...I-14, T1...T11
-│   ├── decision-log.md        # Durable product decisions D1-D15
+│   ├── decision-log.md        # Durable product decisions D1-D16
 │   ├── coding-rules.md        # Engineering standards
 │   └── feature-specs/         # Feature specifications
 └── tests/                     # All tests: packages/, apps/ and evals/ (behavioral scenarios)
@@ -97,7 +97,7 @@ The workspace has seven members (`pyproject.toml`, `[tool.uv.workspace]`). Each 
 ## Documentation
 
 - [Behavioral Contract](docs/behavioral-contract.md) - State machine, invariants, transitions
-- [Decision Log](docs/decision-log.md) - Product decisions D1-D15
+- [Decision Log](docs/decision-log.md) - Product decisions D1-D16
 - [Coding Rules](docs/coding-rules.md) - Engineering standards and conventions
 - [Glossary](docs/glossary.md) - Canonical terminology
 

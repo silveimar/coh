@@ -127,3 +127,12 @@ Durable product/engineering decisions for the **Cognitive Operating Harness (COH
 - **Alternatives rejected:** lowering the floor to 3.14 (wheels exist for all five); pinning to old versions without cp315 wheels.
 - **Reopen when:** a required dependency fails to install on 3.15 from wheel or sdist, or pyyaml's sdist build fails in CI.
 - **Decided:** 2026-10-14, Silver.
+
+## D16 - certifi under MPL-2.0
+
+- **Question:** `certifi` (MPL-2.0) is already in `uv.lock` as a transitive dependency of `httpx` and `httpcore`; `httpx` is in the root `dev` group (the FastAPI test client needs it). The license policy (`FLEET-POLICY.md`, `CONTRIBUTING.md`) allows MIT, Apache-2.0, BSD and ISC without approval; anything else needs the owner. Keep it, or drop `httpx`?
+- **Selected:** Approve `certifi` under MPL-2.0 as a transitive dependency, used unmodified. No other MPL-2.0 package is approved by this entry.
+- **Rationale:** MPL-2.0 is file-level copyleft. Installing and using `certifi` for development and tests is not distribution and triggers no MPL obligation. Redistributing MPL-covered files, changed or not, carries the license's notice and source-availability requirements; COH does not vendor or redistribute `certifi` today. The package reaches the lock only through the dev group, so no COH runtime component ships it. The dependency audit (chores-q4 Phase 3) needs the license question closed before it runs.
+- **Alternatives rejected:** dropping `httpx` (breaks the API tests to avoid a license that imposes no obligation on dev-only use); a blanket MPL-2.0 allowance (wider than the one package that needs it).
+- **Reopen when:** COH modifies, vendors or redistributes `certifi` files (for example in a runtime dependency or a packaged release), or another MPL-2.0 or weak-copyleft package enters the lock.
+- **Decided:** 2026-10-22, Silver (owner answer Q13, chores-q4 planning review).
