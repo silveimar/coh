@@ -13,3 +13,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/execution_core"]
+
+[tool.deptry]
+known_first_party = ["execution_core"]
