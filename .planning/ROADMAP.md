@@ -10,8 +10,8 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Pyright clean archive** - `packages/archive` reaches 0 pyright errors (baseline 5)
-- [ ] **Phase 2: Pyright clean execution-core** - `packages/execution-core` reaches 0 pyright errors (baseline 18) with stored datetimes unchanged
+- [x] **Phase 1: Pyright clean archive** - `packages/archive` reaches 0 pyright errors (baseline 5)
+- [x] **Phase 2: Pyright clean execution-core** - `packages/execution-core` reaches 0 pyright errors (baseline 18) with stored datetimes unchanged
 - [ ] **Phase 3: Dependency audit job** - CI runs deptry and pip-audit on every PR (protected: `.github/workflows/`)
 - [ ] **Phase 4: mypy strict for coh_prose** - `packages/prose/src/coh_prose` passes `mypy --strict` in CI (protected: `.github/workflows/`)
 - [ ] **Phase 5: Docs drift** - README, package READMEs and the `docs/coding-rules.md` structure section match the actual layout
@@ -42,7 +42,7 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
   2. `uv run pytest tests/packages/execution-core --cov=packages/execution-core/src` passes, and `uv run coverage report --include='packages/execution-core/src/*' --fail-under=90` exits 0.
   3. `uv run pytest tests/evals` passes its thresholds.
   4. Fields that defaulted through `datetime.utcnow` still default to naive UTC (`tzinfo is None`); existing `datetime.now(UTC)` sites are unchanged. Persisted and wire values keep their current form.
-**Plans**: TBD
+**Plans**: 1 plan
 
 ### Phase 3: Dependency audit job
 **Goal**: CI fails a PR that introduces an unused, missing or transitive-only dependency (deptry) or a dependency with a known vulnerability (pip-audit).
@@ -90,7 +90,7 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
   1. A new CI step right after the prose tests runs `coverage report --include='packages/prose/src/*' --fail-under=94` (prose-only, measured 94.2% at f3743a1); the existing prose test line is unchanged (additions only).
   2. CI is green on the PR head.
   3. The evidence file shows the step failing when replayed locally with a floor above current coverage.
-**Plans**: TBD
+**Plans**: 1 plan
 
 ## Progress
 
@@ -99,9 +99,20 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pyright clean archive | 0/TBD | Not started | - |
-| 2. Pyright clean execution-core | 0/TBD | Not started | - |
+| 1. Pyright clean archive | 1/1 | Complete (#33) | 2026-10-22 |
+| 2. Pyright clean execution-core | 1/1 | Complete (#34) | 2026-10-22 |
 | 3. Dependency audit job | 0/TBD | Not started | - |
 | 4. mypy strict for coh_prose | 0/TBD | Not started | - |
 | 5. Docs drift | 0/TBD | Not started | - |
-| 6. Coverage floor for prose | 0/TBD | Not started | - |
+| 6. Coverage floor for prose | 0/1 | In progress | - |
+
+## Backlog
+
+Not part of mission chores-q4. Each item needs its own scope gate before it is planned.
+
+### Phase 999.1: Unify naive defaults and aware mutators in execution-core (BACKLOG)
+
+**Goal:** Domain timestamps in `packages/execution-core` use one timezone form. Today the defaults are naive UTC (`domain/clock.py` `utc_now_naive()`, Phase 2 D-01), while about 25 mutators set aware `datetime.now(UTC)` values (for example `Task.start()` sets an aware `updated_at` while `created_at` stays naive). Comparing or subtracting a naive and an aware field (`updated_at - created_at`, sorting by timestamp) raises `TypeError: can't compare offset-naive and offset-aware datetimes`.
+**Source:** acting-lead review of PR #34 (2026-10-22).
+**Constraint:** switching to aware values changes stored and wire timestamp strings (`+00:00` in JSON columns), so it needs a decision-log entry first (REQUIREMENTS "Out of Scope"; Phase 2 D-03).
+**Plans:** none yet
