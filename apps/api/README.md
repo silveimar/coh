@@ -18,7 +18,7 @@ apps/api/src/coh_api/
 │       ├── common.py         # Shared schemas (ErrorResponse, IdempotencyRequest)
 │       ├── spec_gate.py      # Spec gate request/response models
 │       └── foreground.py     # Foreground request/response models
-├── application/             # Re-exports of packages/application services
+├── application/             # Placeholder package (docstring only); routes get services from composition.py
 ├── composition.py           # Service container: SQLite WAL, UnitOfWork, service wiring
 └── main.py                  # FastAPI app with OpenAPI, error handlers, lifespan
 ```
@@ -165,7 +165,7 @@ uv run pytest tests/apps/api --cov=apps/api/src --cov-report=term
 3. **Optimistic concurrency control** enforcement via expected_version
 4. **Progress record persistence** (I-05 full implementation)
 5. **Checkpoint/Recovery HTTP routes** (for non-MCP clients)
-6. **Huey worker integration** for async inspection/verification
+6. **Huey worker integration** for async inspection/verification (planned; Decision D2)
 7. **TypeScript client generation** when UI is added (Phase 3)
 
 ## Relationship to Other Packages
@@ -207,7 +207,9 @@ uv run ruff format apps/api
 uv run ruff check apps/api
 ```
 
-### Type checking (when Pyright is added)
+### Type checking
+
+Pyright is part of the root dev group (ADR 0001), so `uv sync --all-packages` installs it; CI does not run it yet (`CONTRIBUTING.md`, "Known gaps"). It currently reports errors for apps/api.
 
 ```bash
 uv run pyright apps/api

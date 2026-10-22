@@ -546,3 +546,109 @@ packages/execution-core/src/execution_core/state_machine/lifecycle.py
 <worktree>/packages/execution-core/README.md:103:The package imports no FastAPI, SQLAlchemy, Huey, or MCP. Those live in the application and adapter layers.
 <worktree>/packages/execution-core/README.md:126:- Background jobs via Huey (planned; Decision D2)
 ```
+
+After the Task 3 commit (825ed96), `git -C <worktree> status --porcelain --untracked-files=all` printed nothing: no `.coh/` and no DB file in the worktree.
+
+## Task 4
+
+### Step A, before the edits
+
+`grep -c -P '\x{200B}' <worktree>/packages/archive/README.md` (escape-free form; see the deviation note at the top)
+
+```text
+4
+```
+
+`grep -n -P '\x{200B}' <worktree>/packages/archive/README.md` (U+200B written as `<U+200B>`)
+
+```text
+91:<U+200B>```yaml
+97:<U+200B>```
+99:<U+200B>```text
+101:<U+200B>```
+```
+
+`grep -n -E 'archive_wiring\.archive_(user_input|agent_output|tool_invocation)' <worktree>/packages/mcp_adapter/src/coh_mcp/handlers.py` (no `archive_tool_invocation` call)
+
+```text
+88:        await self.archive_wiring.archive_user_input(
+163:            archive_pointer = await self.archive_wiring.archive_agent_output(
+234:        await self.archive_wiring.archive_agent_output(
+487:        archive_pointer = await self.archive_wiring.archive_agent_output(
+```
+
+`grep -n -E 'mark_degraded|ArchiveReference\(' <worktree>/packages/mcp_adapter/src/coh_mcp/archive_wiring.py`
+
+```text
+26:    - On WriteOutcome.ARCHIVE_WRITE_FAILED → Checkpoint.mark_degraded
+68:                checkpoint.mark_degraded()
+112:                checkpoint.mark_degraded()
+162:                checkpoint.mark_degraded()
+174:        ref = ArchiveReference(
+```
+
+`wc -c <worktree>/apps/api/src/coh_api/application/__init__.py`
+
+```text
+51 <worktree>/apps/api/src/coh_api/application/__init__.py
+```
+
+Y1 `uv run --no-sync --directory <worktree> pyright --outputjson apps/api | jq '.summary'`. errorCount is 26, above 0, so the T-AA sentence "It currently reports errors for apps/api." was added.
+
+```text
+{
+  "filesAnalyzed": 12,
+  "errorCount": 26,
+  "warningCount": 0,
+  "informationCount": 0,
+  "timeInSec": 0.606
+}
+```
+
+`grep -n -i -E 'known gaps|pyright' <worktree>/CONTRIBUTING.md` (the source for the type-checking note)
+
+```text
+46:uv run pyright
+52:**Known gaps, tracked for the foundation mission:**
+54:- CI does not run `pyright` yet, although the coding rules make it a gate. Run it locally until it does.
+63:- [ ] `ruff check`, `ruff format --check`, `pyright` and `pytest` pass locally, and CI is green.
+```
+
+### Step C, after the edits
+
+`grep -c -P '\x{200B}' <worktree>/packages/archive/README.md`
+
+```text
+4
+```
+
+`grep -n -P '\x{200B}' <worktree>/packages/archive/README.md` (same lines and text as Step A)
+
+```text
+91:<U+200B>```yaml
+97:<U+200B>```
+99:<U+200B>```text
+101:<U+200B>```
+```
+
+`uv run --no-sync --directory <worktree> pyright apps/api`, the documented command: exit 1, 26 errors in `api/routes/foreground.py`, `api/routes/spec_gate.py` and `composition.py`. The last line:
+
+```text
+26 errors, 0 warnings, 0 informations
+```
+
+`git -C <worktree> diff -U0 origin/main -- packages/archive/README.md` (working-tree form, before the commit). The only hunk is old lines 192-193.
+
+```text
+@@ -192,2 +192,2 @@ uv run pytest tests/packages/archive --cov=coh_archive --cov-report=term-missing
+```
+
+| Command | Output |
+|---|---|
+| `git -C <worktree> diff --name-only origin/main -- packages/mcp_adapter/README.md` | (no output; D-10 file unchanged) |
+| `grep -c -F '✅ ~~' <worktree>/packages/archive/README.md` | `2` (baseline 0) |
+| `grep -c -F 'no handler calls it yet' <worktree>/packages/archive/README.md` | `1` |
+| `grep -c -F -e 'Re-exports of packages/application' -e 'when Pyright is added' <worktree>/apps/api/README.md` | `0` (baseline 2 lines) |
+| `grep -c -F 'Placeholder package (docstring only)' <worktree>/apps/api/README.md` | `1` |
+| `grep -n -F '(WAL mode, auto-created on first run)' <worktree>/apps/api/README.md` | `57:**Database:** SQLite at ...` (D-10, unchanged) |
+| `grep -n -F 'Huey worker integration' <worktree>/apps/api/README.md` | `168:6. **Huey worker integration** for async inspection/verification (planned; Decision D2)` |
