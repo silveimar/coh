@@ -26,15 +26,15 @@ Posture: everything starts **human-led**. The human merges. A scope only becomes
 
 | Dimension | Auto | Ask | Never |
 |---|---|---|---|
-| **OS / host** | Work inside your own home. User-space tools (`uv`, `mise`, `volta install` into Volta's user home). | New apt package. New systemd **user** service. Opening a port. | `sudo`. Other users' homes. System units. Firewall changes. The `ci` runner's configuration. |
-| **Secrets** | Read tokens from `~/.config/fleet/*.env` (mode 600). | A new token or a wider token scope. | Commit secrets. Echo them to terminals, transcripts or queue text. Copy them between seats' configs. |
+| **OS / host** | Work inside your own home. User-space tools (`uv`, `mise`, `volta install` into Volta's user home). | New apt package. New systemd **user** service. Opening a port. | `sudo`. Other users' homes. System units. Firewall changes. Any self-hosted runner (none exists; user `ci` deleted, H-107). |
+| **Secrets** | Get GitHub tokens from the broker: `GH_TOKEN="$(fleet-token print --role <role> --repo <repo>)"` (H-109). Until the broker cutover, the old `~/.config/fleet/*.env` (mode 600) is the fallback. | A new token, a new broker grant or a wider token scope. | Commit secrets. Echo or log them, including broker tokens, to terminals, transcripts or queue text. Copy them between seats' configs. |
 | **Git / GitHub** | Branches, commits, draft PRs, rebases of your own branches. | Merge in a human-led mission. Delete a branch you did not create. | Force push. Push to `main`. Change repo settings, rulesets, tags or releases. Publish packages. `gh repo delete`. |
 | **Merge** | Post "ready to merge" on the queue when required checks are green (including the checker's verdict on the exact head SHA), the DoD checklist is complete and the diff stays inside the slice spec. | Every merge is the human's, in every posture, until the fleet merge account is decided (H-101, H-103). | Merging. Asking the human to bypass the ruleset. |
-| **CI/CD** | Add or adjust jobs inside the agreed stack. Staging deploys on merge. | A new tool or service in the stack. Every **production** deploy (GitHub Environment approval). Any change to the production instance or its OpenTofu state. | Disable, skip or weaken a required check. Run the self-hosted runner on a public repo. Reach the production instance outside the deploy job. |
+| **CI/CD** | Add or adjust jobs inside the agreed stack. Staging deploys on merge. | A new tool or service in the stack. Every **production** deploy (GitHub Environment approval). Any change to the production instance or its OpenTofu state. | Disable, skip or weaken a required check. Attach or run a self-hosted runner. Reach the production instance outside the deploy job. |
 | **Architecture** | Changes inside the slice spec and existing module boundaries. | A dependency outside the allowlist, a new service or datastore, a schema migration, a public API change, a cross-module refactor. Each needs an ADR. | Silent architecture changes without an ADR. |
 | **Scope / product (doghouse rule)** | What the slice spec says. | Anything the spec does not say, however reasonable it seems. | Expanding a slice because "it needs it" without asking. |
 | **Specs / docs** | Update docs that describe your change. Fill in the proof file. | Change `SPEC.md`, the mission goal or the DoD. | Mark a slice done without its proof. |
-| **Security** | Pin dependencies. Run gitleaks and Trivy. | Licenses other than MIT, Apache-2.0, BSD, ISC. Any auth or crypto code. Calls to external APIs. | Disable tests, linters or scanners to make something pass. Bind to `0.0.0.0`. Send repository code to a service with no data-retention promise (the Jev experiment included, while repos are private). |
+| **Security** | Pin dependencies. Run gitleaks and Trivy. | Licenses other than MIT, Apache-2.0, BSD, ISC. Any auth or crypto code. Calls to external APIs. | Disable tests, linters or scanners to make something pass. Bind to `0.0.0.0`. Send repository code to a service with no data-retention promise (the Jev experiment included) for code in private repositories. |
 | **Design / UI** | Follow the repo's design tokens and components. | A new visual pattern or component library. | Replace the design system. |
 | **Data / privacy** | Synthetic test data and synthetic fixtures. | Real data of any kind, including the catalogue CSVs. | Read the owner's personal notes, other agent systems' data or any other user's files. |
 | **Cost / quota** | Work until a quota wall, then block the item with the reset time. | Raise builder concurrency above 1. | Start work outside a time box. |
@@ -46,7 +46,7 @@ Posture: everything starts **human-led**. The human merges. A scope only becomes
 
 - CI runs only on GitHub-hosted runners (`runs-on: ubuntu-latest`). The repository has no self-hosted runner, and none is attached while it is public.
 - Adding a self-hosted runner is a policy change: it needs an owner-approved PR to this file first, and it never runs jobs from fork pull requests.
-- First-time outside contributors need owner approval before their workflows run (Settings, Actions, General).
+- All outside contributors need owner approval before their workflows run (Settings, Actions, General: "Require approval for all external contributors").
 - Every workflow job declares the least `permissions:` it needs, starting from `contents: read`. Workflow changes go through the lead checks commit (protected path).
 - Required checks on `main` are listed in the ruleset; seats cannot bypass it.
 
