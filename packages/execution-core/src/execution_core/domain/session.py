@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
+from .clock import utc_now_naive
 from .enums import LifecycleState, SessionIntent
 from .specification import Specification
 
@@ -18,8 +19,8 @@ class ExecutionSession(BaseModel):
     lifecycle_state: LifecycleState = LifecycleState.INSPECT
     current_spec: Specification | None = None
     version: int = 1
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now_naive)
+    updated_at: datetime = Field(default_factory=utc_now_naive)
     checkpoints: list[Checkpoint] = Field(default_factory=list)
 
     def increment_version(self) -> None:
