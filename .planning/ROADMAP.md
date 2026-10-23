@@ -149,11 +149,13 @@ Not part of mission chores-q4. Each item needs its own scope gate before it is p
 - Docs name neither deptry, pip-audit nor mypy: `CONTRIBUTING.md:50`, `:55`; `README.md:49-50`; `AGENTS.md:41`; and the Phase 4 D-09 sites.
 - The mcp_adapter layer violation (`handlers.py` writes through repositories); fixing it removes the DEP003 `sqlalchemy` ignore.
 - checks-guard rules for config that weakens deptry, pip-audit or mypy.
-- Required status checks for the deptry, pip-audit and mypy jobs.
+- Required status checks for the deptry and pip-audit jobs (the owner's ruleset).
+- The D-06 gap: the 3 platform-marker-only pins are not audited on Linux; reopen if COH supports Windows.
+- mypy beyond coh_prose: deferred.
 - `.mypy_cache/` is not in the root `.gitignore`.
 - `typing-extensions` (PSF-2.0) in `uv.lock` has no decision-log entry.
 - `renderer.py:281-303` renders "None fails" when no criterion fails.
-- GitHub's Dependency Graph run (Dependabot `update-pip-graph`, event `dynamic`) fails on every push to `main` with `tool_version_not_supported`: Dependabot reads `requires-python >=3.15` and supports up to 3.14. It is not a workflow in `.github/workflows/`, and it failed before Phase 3 (for example run 39666281976 on d2b31b7).
+- GitHub's Dependency Graph run (Dependabot `update-pip-graph`, event `dynamic`) fails on the pushes to `main` checked since 2026-10-21 with `tool_version_not_supported`: Dependabot reads `requires-python >=3.15` and supports up to 3.14. It is not a workflow in `.github/workflows/`, and it failed before Phase 3 (for example run 39666281976 on d2b31b7).
 **Source:** Phase 3 (PR #41) and Phase 4 (PR #38) summaries; post-merge check of `main` 80c9a88, 2026-10-23.
 **Constraint:** checks-guard rules and status checks are protected-set or repo-settings changes (lead checks commit, owner ruleset); the layer fix is code and may overlap 999.3 and 999.4; the typing-extensions entry needs an owner decision; the Dependency Graph failure needs an owner repo-settings choice or Dependabot support for 3.15.
 **Plans:** none yet

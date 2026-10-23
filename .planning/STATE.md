@@ -39,7 +39,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 2]: Domain defaults stay naive UTC through `domain/clock.py` `utc_now_naive()`; aware `datetime.now(UTC)` mutators unchanged (D-03).
 - [2026-10-22]: `certifi` MPL-2.0 approved as a transitive dev dependency (owner answer Q13; decision log D16).
 - [Phase 4]: mypy 2.4.0 via ADR-0002; `pathspec` MPL-2.0 approved for dev-only use (D17).
-- [Phase 3]: deptry and pip-audit via ADR-0003; `defusedxml` and pip's vendored `distlib` PSF-2.0 approved CI-only (D18); a pip-audit-only red on `main` is a fix slice, not a dispatch pause (owner answer f1; the CULTURE.md exception goes through the retro PR).
+- [Phase 3]: deptry and pip-audit via ADR-0003; `defusedxml` and pip's vendored `distlib` PSF-2.0 approved CI-only (D18); a pip-audit-only red on `main` is to be a fix slice, not a dispatch pause (owner answer f1). Until the matching CULTURE.md exception merges through the retro PR, the Autopilot "`main` red" pause rule applies as written.
 - [Phase 3]: The 5 deptry findings on `main` resolved as a split (03-CONTEXT D-04, owner answer Q8).
 - [2026-10-22]: A pushed PR branch that needs `main` is rebuilt on a new branch by cherry-pick (checks-guard rejects merge commits; force push is Never). Owner answer for #39, superseded by #41.
 
