@@ -1,11 +1,15 @@
 """Tests for MCP handlers."""
 
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 
+from coh_application import SpecGateService
 from coh_mcp.errors import CapabilityNotImplementedError
 from coh_mcp.handlers import COHHandlers
+from execution_core.domain.enums import LifecycleState
+from persistence.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 
 
 @pytest.fixture
@@ -341,6 +345,52 @@ async def test_confirm_spec_while_blocked_returns_error(handlers: COHHandlers):
     with SqlAlchemyUnitOfWork(handlers.session_factory) as uow:
         session_check = uow.sessions.get(session_id)
         assert session_check.lifecycle_state == LifecycleState.SPECIFY
+
+
+@pytest.mark.asyncio
+async def test_confirm_spec_corrections_persist_new_revision(
+    handlers: COHHandlers,
+) -> None:
+    """T5 corrections insert the new spec before the session points at it."""
+    created = await handlers.create_session(
+        project_id="test-project",
+        user_input="Build the thing",
+        intent="execute",
+    )
+    session_id = UUID(created[0]["text"].split("\n")[0].split(": ")[1])
+
+    await handlers.specify_work(
+        session_id=str(session_id),
+        what="Original what",
+        why="Reason",
+        deliverable="Output",
+        done_when=["Criterion one"],
+    )
+
+    with SqlAlchemyUnitOfWork(handlers.session_factory) as uow:
+        original = SpecGateService(uow).get_spec_status(session_id)
+    original_id = UUID(str(original["spec_id"]))
+
+    result = await handlers.confirm_spec(
+        str(session_id),
+        confirmed=False,
+        corrections={"what": "Corrected what"},
+    )
+
+    assert "CONFIRM → SPECIFY" in result[0]["text"]
+
+    with SqlAlchemyUnitOfWork(handlers.session_factory) as uow:
+        session = uow.sessions.get(session_id)
+        assert session is not None
+        assert session.lifecycle_state == LifecycleState.SPECIFY
+        status = SpecGateService(uow).get_spec_status(session_id)
+        original_spec = uow.specifications.get(original_id)
+
+    assert status["what"] == "Corrected what"
+    assert status["revision"] == "2"
+    assert status["spec_id"] != str(original_id)
+    assert original_spec is not None
+    assert original_spec.what == "Original what"
 
 
 @pytest.mark.asyncio

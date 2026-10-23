@@ -171,6 +171,59 @@ class TestI02ReadinessGate:
         assert data["detail"]["error_code"] == "readiness_blocked"
         assert "Missing WHAT" in str(data["detail"])
 
+    def test_revise_done_when_round_trips(self, client, session_with_ready_spec):
+        """Revising done_when stores criteria and leaves the spec readable."""
+        test_session, spec = session_with_ready_spec
+
+        response = client.post(
+            "/api/v1/spec-gate/revise",
+            json={
+                "session_id": str(test_session.id),
+                "spec_id": str(spec.id),
+                "updates": {
+                    "what": "Revised feature",
+                    "done_when": ["Criterion replaced"],
+                },
+                "idempotency_key": "revise-done-when",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["what"] == "Revised feature"
+        assert data["done_when"] == ["Criterion replaced"]
+        assert data["revision"] == 2
+
+        status = client.get(f"/api/v1/spec-gate/status/{test_session.id}")
+        assert status.status_code == 200
+        body = status.json()
+        assert body["spec_id"] == data["spec_id"]
+        assert body["what"] == "Revised feature"
+        assert body["done_when_count"] == 1
+
+    def test_revise_rejects_unknown_field(self, client, session_with_ready_spec):
+        """A field outside the revision allow-list does not replace the spec."""
+        test_session, spec = session_with_ready_spec
+
+        response = client.post(
+            "/api/v1/spec-gate/revise",
+            json={
+                "session_id": str(test_session.id),
+                "spec_id": str(spec.id),
+                "updates": {"id": str(spec.id)},
+                "idempotency_key": "revise-id",
+            },
+        )
+
+        assert response.status_code == 422
+        assert response.json()["detail"]["error_code"] == "invalid_revision"
+
+        status = client.get(f"/api/v1/spec-gate/status/{test_session.id}")
+        assert status.status_code == 200
+        body = status.json()
+        assert body["spec_id"] == str(spec.id)
+        assert body["revision"] == "1"
+
     def test_read_only_status_always_permitted(self, client, session_with_blocked_spec):
         """Get status is always permitted regardless of readiness (I-02)."""
         test_session, _ = session_with_blocked_spec
