@@ -1,3 +1,6 @@
+
+
+Atest
 # COH (Cognitive Operating Harness)
 
 **Status:** Phase 0 complete, execution-core implementation in progress
