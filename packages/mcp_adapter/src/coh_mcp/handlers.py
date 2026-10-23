@@ -403,6 +403,18 @@ class COHHandlers:
                         session, corrected_spec, command
                     )
 
+                    # correct_spec mints a new spec id. Insert that row before
+                    # the session update: current_spec_id is a foreign key, and
+                    # SQLite checks it before a later insert in the same commit.
+                    if session.current_spec is None:
+                        return [
+                            {
+                                "type": "text",
+                                "text": "No specification to correct",
+                            }
+                        ]
+                    uow.specifications.add(session.current_spec)
+                    uow.flush()
                     expected_version = session.version - 1
                     uow.sessions.update(session, expected_version)
 

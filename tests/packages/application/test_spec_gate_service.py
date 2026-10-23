@@ -377,6 +377,77 @@ class TestSpecGateService:
         assert revised.what == "Revised"
         assert revised.id != confirmed.id
 
+    def test_revise_spec_done_when_round_trips(self, uow, session):
+        """done_when text is stored as criteria and can be loaded again."""
+        service = SpecGateService(uow)
+
+        with uow:
+            spec = service.propose_spec(
+                session_id=session.id,
+                what="Original",
+                why="Reason",
+                deliverable="Output",
+                done_when=["Old criterion"],
+            )
+            confirmed = service.confirm_spec(session.id, spec)
+
+        with uow:
+            revised = service.revise_spec(
+                session.id,
+                confirmed.id,
+                {
+                    "done_when": ["New criterion"],
+                    "constraints": ["stay local"],
+                },
+            )
+
+        assert [criterion.text for criterion in revised.done_when] == ["New criterion"]
+        assert revised.constraints == ["stay local"]
+
+        with uow:
+            loaded = uow.specifications.get(revised.id)
+            status = service.get_spec_status(session.id)
+
+        assert loaded is not None
+        assert [criterion.text for criterion in loaded.done_when] == ["New criterion"]
+        assert loaded.constraints == ["stay local"]
+        assert status["spec_id"] == str(revised.id)
+        assert status["done_when_count"] == 1
+        assert status["readiness"] == "ready"
+
+    def test_revise_spec_rejects_unsafe_updates_without_writing(self, uow, session):
+        """Unknown fields and mistyped lists do not replace the current spec."""
+        service = SpecGateService(uow)
+
+        with uow:
+            spec = service.propose_spec(
+                session_id=session.id,
+                what="Original",
+                why="Reason",
+                deliverable="Output",
+                done_when=["Old criterion"],
+            )
+            confirmed = service.confirm_spec(session.id, spec)
+
+        with pytest.raises(ValueError, match="Cannot revise field"):
+            with uow:
+                service.revise_spec(session.id, confirmed.id, {"id": str(confirmed.id)})
+
+        with pytest.raises(ValueError, match="constraints must be a list of strings"):
+            with uow:
+                service.revise_spec(
+                    session.id, confirmed.id, {"constraints": "stay local"}
+                )
+
+        with uow:
+            status = service.get_spec_status(session.id)
+            loaded = uow.specifications.get(confirmed.id)
+
+        assert status["spec_id"] == str(confirmed.id)
+        assert status["revision"] == "1"
+        assert loaded is not None
+        assert loaded.constraints == []
+
     def test_get_questions_groups_blocking_and_material(self, uow, session):
         """get_questions returns grouped questions with recommended defaults."""
         service = SpecGateService(uow)

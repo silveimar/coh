@@ -225,9 +225,15 @@ def revise_spec(request: ReviseSpecRequest) -> SpecResponse:
                 blockers=blockers,
             )
         except ValueError as e:
+            message = str(e)
+            if "not found" in message:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail={"error_code": "not_found", "message": message},
+                ) from None
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={"error_code": "not_found", "message": str(e)},
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"error_code": "invalid_revision", "message": message},
             ) from None
 
 

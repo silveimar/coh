@@ -13,6 +13,57 @@ from execution_core.domain.specification import (
 )
 from persistence.ports.state_store import UnitOfWork
 
+_REVISABLE_TEXT_FIELDS = frozenset({"what", "why", "deliverable"})
+_REVISABLE_STRING_LIST_FIELDS = frozenset({"constraints", "non_goals"})
+
+
+def _apply_spec_updates(
+    spec: Specification, updates: dict[str, str | list[str]]
+) -> None:
+    """Apply a revision payload onto spec fields that round-trip through JSON.
+
+    ``done_when`` arrives as criterion text. Stored as bare strings, the next
+    load passes each string to ``DoneWhenCriterion`` and raises TypeError, and
+    the session's current spec can no longer be read.
+    """
+    for key, raw_value in updates.items():
+        # The annotation is the wire shape. Callers can still pass other
+        # objects, and those must fail before a write.
+        value: object = raw_value
+        if key in _REVISABLE_TEXT_FIELDS:
+            if not isinstance(value, str):
+                raise ValueError(f"{key} must be a string")
+            setattr(spec, key, value)
+            continue
+
+        if key in _REVISABLE_STRING_LIST_FIELDS:
+            items = _string_list(value)
+            if items is None:
+                raise ValueError(f"{key} must be a list of strings")
+            setattr(spec, key, items)
+            continue
+
+        if key == "done_when":
+            items = _string_list(value)
+            if items is None:
+                raise ValueError("done_when must be a list of strings")
+            spec.done_when = [DoneWhenCriterion(text=item) for item in items]
+            continue
+
+        raise ValueError(f"Cannot revise field {key}")
+
+
+def _string_list(value: object) -> list[str] | None:
+    """Return value when it is a list of strings."""
+    if not isinstance(value, list):
+        return None
+    items: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            return None
+        items.append(item)
+    return items
+
 
 class SpecGateService:
     """Spec gate service implementing I-02: no material mutation while Blocked."""
@@ -126,6 +177,9 @@ class SpecGateService:
 
         Creates new revision with incremented revision number.
         Recomputes clarity and readiness.
+
+        Revisable fields are what, why, deliverable, done_when, constraints,
+        and non_goals. Other fields are rejected before any write.
         """
         session = self.uow.sessions.get(session_id)
         if not session:
@@ -136,11 +190,7 @@ class SpecGateService:
             raise ValueError(f"Specification {spec_id} not found")
 
         new_spec = spec.create_revision()
-
-        for key, value in updates.items():
-            if hasattr(new_spec, key):
-                setattr(new_spec, key, value)
-
+        _apply_spec_updates(new_spec, updates)
         new_spec.update_computed_fields()
 
         session.current_spec = new_spec

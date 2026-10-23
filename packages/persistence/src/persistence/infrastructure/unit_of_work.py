@@ -54,6 +54,11 @@ class SqlAlchemyUnitOfWork:
                 self._session.close()
                 self._session = None
 
+    def flush(self) -> None:
+        """Flush pending inserts so later statements can reference them."""
+        if self._session:
+            self._session.flush()
+
     def commit(self) -> None:
         """Commit the current transaction."""
         if self._session:
