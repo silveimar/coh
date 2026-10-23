@@ -18,3 +18,6 @@ packages = ["src/persistence"]
 
 [tool.uv.sources]
 execution-core = { workspace = true }
+
+[tool.deptry]
+known_first_party = ["persistence"]

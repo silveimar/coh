@@ -7,7 +7,6 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "pydantic>=2.9.0",
-    "execution-core",
     "persistence",
     "application",
 ]
@@ -18,3 +17,14 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/coh_api"]
+
+[tool.deptry]
+known_first_party = ["coh_api"]
+
+[tool.deptry.package_module_name_map]
+application = "coh_application"
+
+[tool.deptry.per_rule_ignores]
+# uvicorn is the server that runs the app from the command line
+# (`uv run uvicorn coh_api.main:app`, apps/api/README.md); no module imports it.
+DEP002 = ["uvicorn"]
