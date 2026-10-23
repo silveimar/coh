@@ -1,4 +1,5 @@
 # COH (Cognitive Operating Harness)
+this is a test A6
 
 **Status:** Phase 0 complete, execution-core implementation in progress
 
