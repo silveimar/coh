@@ -12,8 +12,8 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
 
 - [x] **Phase 1: Pyright clean archive** - `packages/archive` reaches 0 pyright errors (baseline 5)
 - [x] **Phase 2: Pyright clean execution-core** - `packages/execution-core` reaches 0 pyright errors (baseline 18) with stored datetimes unchanged
-- [ ] **Phase 3: Dependency audit job** - CI runs deptry and pip-audit on every PR (protected: `.github/workflows/`)
-- [ ] **Phase 4: mypy strict for coh_prose** - `packages/prose/src/coh_prose` passes `mypy --strict` in CI (protected: `.github/workflows/`)
+- [x] **Phase 3: Dependency audit job** - CI runs deptry and pip-audit on every PR (protected: `.github/workflows/`)
+- [x] **Phase 4: mypy strict for coh_prose** - `packages/prose/src/coh_prose` passes `mypy --strict` in CI (protected: `.github/workflows/`)
 - [x] **Phase 5: Docs drift** - README, package READMEs and the `docs/coding-rules.md` structure section match the actual layout
 - [x] **Phase 6: Coverage floor for prose** - CI enforces a statement coverage floor for `packages/prose` (protected: `.github/workflows/`)
 
@@ -54,7 +54,7 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
   1. An accepted ADR in `docs/adr/` covers deptry and pip-audit (license, pinning, how they run).
   2. A CI job runs both tools on every PR and push to `main` and is green on the PR head.
   3. Each tool fails the job on a finding (shown by the tool's exit code contract in the evidence file).
-**Plans**: TBD
+**Plans**: 1 plan
 
 ### Phase 4: mypy strict for coh_prose
 **Goal**: `packages/prose/src/coh_prose` is checked by `mypy --strict` in CI.
@@ -66,7 +66,7 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
   1. `uv run mypy --strict packages/prose/src/coh_prose` exits 0.
   2. A CI step runs that command on every PR and is green on the PR head.
   3. `uv run pyright packages/prose` still reports 0 errors.
-**Plans**: TBD
+**Plans**: 1 plan
 
 ### Phase 5: Docs drift
 **Goal**: The repository docs describe only what exists and mark planned components as planned.
@@ -101,8 +101,8 @@ Mission `chores-q4` pays down six pieces of tooling and docs debt recorded in `C
 |-------|----------------|--------|-----------|
 | 1. Pyright clean archive | 1/1 | Complete (#33) | 2026-10-22 |
 | 2. Pyright clean execution-core | 1/1 | Complete (#34) | 2026-10-22 |
-| 3. Dependency audit job | 0/TBD | Not started | - |
-| 4. mypy strict for coh_prose | 0/TBD | Not started | - |
+| 3. Dependency audit job | 1/1 | Complete (#41; security fix #40) | 2026-10-23 |
+| 4. mypy strict for coh_prose | 1/1 | Complete (#38) | 2026-10-22 |
 | 5. Docs drift | 1/1 | Complete (#36) | 2026-10-22 |
 | 6. Coverage floor for prose | 1/1 | Complete (#35) | 2026-10-22 |
 
@@ -141,4 +141,19 @@ Not part of mission chores-q4. Each item needs its own scope gate before it is p
 - D-10: the `packages/mcp_adapter/README.md` architecture diagram shows every handler going through application services, but some handlers write through `SqlAlchemyUnitOfWork` repositories directly (for example `handlers.py:93-98`). AGENTS.md: "Routes and MCP tools call application services, never repositories."
 **Source:** Phase 5 (PR #36) verification, 2026-10-22.
 **Constraint:** F-1 and the `apps/api` line are docs; F-8 and the handler routing are code (the routing fix may overlap 999.3).
+**Plans:** none yet
+
+### Phase 999.5: Phase 3 and 4 follow-ups (BACKLOG)
+
+**Goal:** Close the findings Phases 3 and 4 recorded but did not fix (`03-01-SUMMARY.md` and `04-01-SUMMARY.md`, "Follow-ups"):
+- Docs name neither deptry, pip-audit nor mypy: `CONTRIBUTING.md:50`, `:55`; `README.md:49-50`; `AGENTS.md:41`; and the Phase 4 D-09 sites.
+- The mcp_adapter layer violation (`handlers.py` writes through repositories); fixing it removes the DEP003 `sqlalchemy` ignore.
+- checks-guard rules for config that weakens deptry, pip-audit or mypy.
+- Required status checks for the deptry, pip-audit and mypy jobs.
+- `.mypy_cache/` is not in the root `.gitignore`.
+- `typing-extensions` (PSF-2.0) in `uv.lock` has no decision-log entry.
+- `renderer.py:281-303` renders "None fails" when no criterion fails.
+- GitHub's Dependency Graph run (Dependabot `update-pip-graph`, event `dynamic`) fails on every push to `main` with `tool_version_not_supported`: Dependabot reads `requires-python >=3.15` and supports up to 3.14. It is not a workflow in `.github/workflows/`, and it failed before Phase 3 (for example run 39666281976 on d2b31b7).
+**Source:** Phase 3 (PR #41) and Phase 4 (PR #38) summaries; post-merge check of `main` 80c9a88, 2026-10-23.
+**Constraint:** checks-guard rules and status checks are protected-set or repo-settings changes (lead checks commit, owner ruleset); the layer fix is code and may overlap 999.3 and 999.4; the typing-extensions entry needs an owner decision; the Dependency Graph failure needs an owner repo-settings choice or Dependabot support for 3.15.
 **Plans:** none yet
