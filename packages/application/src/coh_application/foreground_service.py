@@ -68,8 +68,12 @@ class ForegroundService:
         if not task:
             raise ValueError(f"Task {task_id} not found")
 
-        if task.foreground_position != ForegroundPosition.NOW:
-            raise ValueError(f"Task {task_id} is not the NOW task")
+        spec = self._load_current_spec(session)
+        if not spec:
+            raise ValueError(f"Session {session_id} has no specification")
+
+        tasks = self.uow.tasks.list_by_spec(spec.id)
+        self._require_now_task(session_id, task_id, tasks, spec.what)
 
         # I-05: Create progress record before state change (persistence deferred)
         _progress_record = TaskProgressRecord(
@@ -82,10 +86,6 @@ class ForegroundService:
         task.foreground_position = ForegroundPosition.BACKGROUND
 
         self.uow.tasks.update(task)
-
-        spec = self._load_current_spec(session)
-        if not spec:
-            raise ValueError(f"Session {session_id} has no specification")
 
         remaining_tasks = [
             t for t in self.uow.tasks.list_by_spec(spec.id) if t.id != task_id
@@ -120,8 +120,12 @@ class ForegroundService:
         if not task:
             raise ValueError(f"Task {task_id} not found")
 
-        if task.foreground_position != ForegroundPosition.NOW:
-            raise ValueError(f"Task {task_id} is not the NOW task")
+        spec = self._load_current_spec(session)
+        if not spec:
+            raise ValueError(f"Session {session_id} has no specification")
+
+        tasks = self.uow.tasks.list_by_spec(spec.id)
+        self._require_now_task(session_id, task_id, tasks, spec.what)
 
         # I-05: Create progress record before state change (persistence deferred)
         _progress_record = TaskProgressRecord(
@@ -134,10 +138,6 @@ class ForegroundService:
         task.foreground_position = ForegroundPosition.BACKGROUND
 
         self.uow.tasks.update(task)
-
-        spec = self._load_current_spec(session)
-        if not spec:
-            raise ValueError(f"Session {session_id} has no specification")
 
         remaining_tasks = [
             t
@@ -172,6 +172,10 @@ class ForegroundService:
         if not task:
             raise ValueError(f"Task {task_id} not found")
 
+        spec = self._load_current_spec(session)
+        if not spec:
+            raise ValueError(f"Session {session_id} has no specification")
+
         # I-05: Create progress record before state change (persistence deferred)
         _progress_record = TaskProgressRecord(
             task_id=task_id,
@@ -182,10 +186,6 @@ class ForegroundService:
         task.park()
 
         self.uow.tasks.update(task)
-
-        spec = self._load_current_spec(session)
-        if not spec:
-            raise ValueError(f"Session {session_id} has no specification")
 
         remaining_tasks = [
             t
@@ -227,8 +227,12 @@ class ForegroundService:
         if not task:
             raise ValueError(f"Task {task_id} not found")
 
-        if task.foreground_position != ForegroundPosition.NOW:
-            raise ValueError(f"Task {task_id} is not the NOW task")
+        spec = self._load_current_spec(session)
+        if not spec:
+            raise ValueError(f"Session {session_id} has no specification")
+
+        tasks = self.uow.tasks.list_by_spec(spec.id)
+        self._require_now_task(session_id, task_id, tasks, spec.what)
 
         # I-05: Create progress record before state change (persistence deferred)
         _progress_record = TaskProgressRecord(
@@ -241,10 +245,6 @@ class ForegroundService:
         task.foreground_position = ForegroundPosition.BACKGROUND
 
         self.uow.tasks.update(task)
-
-        spec = self._load_current_spec(session)
-        if not spec:
-            raise ValueError(f"Session {session_id} has no specification")
 
         remaining_tasks = [
             t
@@ -286,6 +286,27 @@ class ForegroundService:
             violations.append("Missing activation_friction")
 
         return len(violations) == 0, violations
+
+    def _require_now_task(
+        self,
+        session_id: UUID,
+        task_id: UUID,
+        tasks: list[Task],
+        goal: str,
+    ) -> None:
+        """Reject the mutation unless policy currently ranks this task as NOW.
+
+        plan_work persists tasks at BACKGROUND. The NOW shown by
+        calculate_foreground is the policy ranking, not the stored column.
+        """
+        foreground = ForegroundPolicy.calculate_foreground(
+            session_id=session_id,
+            goal=goal,
+            tasks=tasks,
+            parked_count=0,
+        )
+        if foreground.now_task is None or foreground.now_task.id != task_id:
+            raise ValueError(f"Task {task_id} is not the NOW task")
 
     def _load_current_spec(self, session):
         """Load the current spec for a session by its stored spec ID."""
