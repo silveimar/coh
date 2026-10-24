@@ -425,3 +425,79 @@ class TestForegroundService:
 
         assert completed.status == TaskStatus.COMPLETED
         assert completed.foreground_position == ForegroundPosition.BACKGROUND
+
+    def test_complete_now_uses_policy_ranking_not_stored_position(
+        self, uow, session_with_spec
+    ):
+        """A planned task left at BACKGROUND is still the NOW task the UI shows."""
+        service = ForegroundService(uow)
+        spec = session_with_spec.current_spec
+
+        task1 = self._create_task(spec.id, "Task 1", "Done 1")
+        task2 = self._create_task(spec.id, "Task 2", "Done 2")
+
+        with uow:
+            uow.tasks.add(task1)
+            uow.tasks.add(task2)
+            uow.commit()
+
+        with uow:
+            initial_fg = service.calculate_foreground(session_with_spec.id)
+            stored = uow.tasks.get(initial_fg.now_task.id)
+
+        assert stored.foreground_position == ForegroundPosition.BACKGROUND
+        other_id = task2.id if initial_fg.now_task.id == task1.id else task1.id
+
+        with uow:
+            with pytest.raises(ValueError, match="not the NOW task"):
+                service.complete_now_task(session_with_spec.id, other_id)
+
+        with uow:
+            new_fg = service.complete_now_task(
+                session_with_spec.id, initial_fg.now_task.id
+            )
+
+        assert new_fg.now_task is not None
+        assert new_fg.now_task.id == other_id
+
+        with uow:
+            completed = uow.tasks.get(initial_fg.now_task.id)
+            rejected = uow.tasks.get(other_id)
+
+        assert completed.status == TaskStatus.COMPLETED
+        assert rejected.status == TaskStatus.PLANNED
+
+    def test_failed_complete_without_spec_does_not_persist(self, uow):
+        """A rejected complete leaves the task planned when the handler commits."""
+        spec = Specification(
+            what="Unlinked",
+            why="The session does not point at this spec",
+            deliverable="Nothing",
+            done_when=[],
+        )
+        spec.update_computed_fields()
+        session = ExecutionSession(
+            project_id="test-project",
+            intent=SessionIntent.EXECUTE,
+            lifecycle_state=LifecycleState.EXECUTE,
+        )
+        task = self._create_task(spec.id, "Orphan NOW", "Done")
+        task.foreground_position = ForegroundPosition.NOW
+
+        with uow:
+            uow.specifications.add(spec)
+            if hasattr(uow, "_session") and uow._session:
+                uow._session.flush()
+            uow.sessions.add(session)
+            uow.tasks.add(task)
+            uow.commit()
+
+        service = ForegroundService(uow)
+        with uow:
+            with pytest.raises(ValueError, match="no specification"):
+                service.complete_now_task(session.id, task.id)
+
+        with uow:
+            stored = uow.tasks.get(task.id)
+
+        assert stored.status == TaskStatus.PLANNED
